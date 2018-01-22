@@ -217,6 +217,7 @@ abstract class UECPlayerBase  {
             dx = 0;
         }else{
             //デバッグ
+            NowRequestedPlayAudios.add("Punch");
             if (Debugmessage){System.out.println("Directed");}
 
             //出来ない時
@@ -321,7 +322,7 @@ class NaoChan extends UECPlayerBase{
                     switch (attackId) {
                         default:
                             NowImageName = "Punch1";
-                            NowRequestedPlayAudios.add("Punch");
+                            NowRequestedPlayAudios.add("Nao_punch1");
                             attackInfo.setInfo(new Point(100, 30), new Point(40, 40), 0, 5, 0, 9999, 10, new Point2D.Float(3f, -5f), 7, 1);
                             attackId = 1;
                             canCombo = 7;
@@ -329,7 +330,7 @@ class NaoChan extends UECPlayerBase{
                             break;
                         case 1:
                             NowImageName = "Punch2";
-                            NowRequestedPlayAudios.add("Punch");
+                            NowRequestedPlayAudios.add("Nao_punch2");
                             attackInfo.setInfo(new Point(100, 30), new Point(50, 40), 0, 5, 0, 9999, 10, new Point2D.Float(3f, -10f), 7, 2);
                             attackId = 2;
                             canCombo = 7;
@@ -337,7 +338,7 @@ class NaoChan extends UECPlayerBase{
                             break;
                         case 2:
                             NowImageName = "Kick3";
-                            NowRequestedPlayAudios.add("Punch");
+                            NowRequestedPlayAudios.add("Nao_kick3");
                             attackInfo.setInfo(new Point(100, 30), new Point(70, 40), 0, 20, 10, 9999, 10, new Point2D.Float(30f, -20f), 30, -1);
                             attackId = -1;
                             canCombo = 0;
@@ -406,10 +407,10 @@ class NaoChan extends UECPlayerBase{
 
     @Override
     public void RegisterAudioClip(TreeMap<String, AudioClip> audios) {
-        audios.put("Nao_punch1", java.applet.Applet.newAudioClip(getClass().getResource("resources/punch1.wav")));
-        audios.put("Nao_punch2", java.applet.Applet.newAudioClip(getClass().getResource("resources/slap2.wav")));
-        audios.put("Nao_kick3", java.applet.Applet.newAudioClip(getClass().getResource("resources/kick3.wav")));
-        audios.put("Nao_guard", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_guard.wav")));
+        audios.put("Nao_punch1", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice1.wav")));
+        audios.put("Nao_punch2", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice2.wav")));
+        audios.put("Nao_kick3", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice3.wav")));
+        //audios.put("Nao_guard", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_guard.wav")));
     }
 }
 
