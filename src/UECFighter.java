@@ -667,8 +667,8 @@ class StartFrameView extends JPanel implements ActionListener{
     }
 
     private void RegisterAudioClip(){
-        audios.put("Select", java.applet.Applet.newAudioClip(getClass().getResource("resources/slap2.wav")));
-        audios.put("Decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice1.wav")));
+        audios.put("Select", java.applet.Applet.newAudioClip(getClass().getResource("resources/cursor_move.wav")));
+        audios.put("Decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/decision.wav")));
     }
 
     private void PlaySoundEffect(String soundName){
@@ -752,6 +752,7 @@ class PlayerSelect extends JPanel {
                 }
             }
         }if(key == p1_OK){
+            PlaySoundEffect("Decision");
             if(p_enabled[0] == 0){
                 PlaySoundEffect("Kiu_decision");
             }else {
@@ -759,6 +760,7 @@ class PlayerSelect extends JPanel {
             }
             p_selected[0] = true;
         }if(key == p2_OK){
+            PlaySoundEffect("Decision");
             if(p_enabled[1] == 0){
                 PlaySoundEffect("Kiu_decision");
             }else {
@@ -857,6 +859,7 @@ class PlayerSelect extends JPanel {
         audios.put("Select", java.applet.Applet.newAudioClip(getClass().getResource("resources/slap2.wav")));
         audios.put("Kiu_decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_sentaku.wav")));
         audios.put("Nao_decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_sentaku.wav")));
+        audios.put("Decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/decision.wav")));
     }
 
     private void PlaySoundEffect(String soundName){
@@ -868,8 +871,7 @@ class PlayerSelect extends JPanel {
 //試合時間を管理
 class GameTime implements ActionListener{
     private javax.swing.Timer gameTime;
-    private int starttime;
-    private int time;
+    private int starttime, time;
 
     public GameTime(int time){
         this.time = time;
@@ -878,7 +880,7 @@ class GameTime implements ActionListener{
         gameTime.start();
     }
 
-    public String getTime(){ return String.format("%d", time); }
+    public int getTime(){ return time; }
 
     public int getstart(){ return starttime;}
 
@@ -886,7 +888,7 @@ class GameTime implements ActionListener{
         if(starttime > 0){
             starttime--;
         }
-        if(starttime == 0){
+        if(starttime == 0 && time>0){
             time--;
         }
     }
@@ -907,6 +909,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
     private GameTime gameTime;
     private JLabel timeLabel, starttime;
     private int scene; //ゲームのシーンをmanegementする為の変数
+    private boolean canOperate;
 
     private UECPlayerBase player1, player2;
     private Point2D.Float p1position, p2position;
@@ -923,6 +926,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
         this.setSize(UECFighter.SCREEN_WIDTH, UECFighter.HEIGHT);
         this.setBackground(new Color(150,255,255));
         this.setLayout(null);
+        canOperate = false;
 
         //プレイヤー1
         float p1magnification = 2f;
@@ -956,7 +960,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
         font = new Font(Font.SANS_SERIF,Font.BOLD, 80);
 
         Font font = new Font(Font.SANS_SERIF, JLabel.CENTER, 32);
-        timeLabel = new JLabel(gameTime.getTime(), JLabel.CENTER);
+        timeLabel = new JLabel(Integer.toString(gameTime.getTime()), JLabel.CENTER);
         timeLabel.setBackground(Color.WHITE);
         timeLabel.setBounds(320, 0, 80, 80);
         timeLabel.setFont(font);
@@ -1068,9 +1072,15 @@ class UECFrameView extends JPanel {//implements KeyListener{
         PlaySoundEffect(player1.getNowRequestedPlayAudio());
         PlaySoundEffect(player2.getNowRequestedPlayAudio());
 
-        timeLabel.setText(gameTime.getTime());
+        timeLabel.setText(Integer.toString(gameTime.getTime()));
         g.setFont(font);
         g.setColor(Color.red);
+        if(gameTime.getstart()==0){
+            canOperate = true;
+        }
+        if(gameTime.getTime()==0 || player1.getHP()<=0 || player2.getHP()<=0){
+            canOperate = false;
+        }
         switch(gameTime.getstart()){
             case 2:
                 g.drawString("Ready", 260, 240);
@@ -1102,14 +1112,18 @@ class UECFrameView extends JPanel {//implements KeyListener{
 
     //@Override
     public void keyPressed(KeyEvent e) {
-        player1.keyPressed(e);
-        player2.keyPressed(e);
+        if(canOperate){
+            player1.keyPressed(e);
+            player2.keyPressed(e);
+        }
     }
 
     //@Override
     public void keyReleased(KeyEvent e) {
-        player1.keyReleased(e);
-        player2.keyReleased(e);
+        if(canOperate){
+            player1.keyReleased(e);
+            player2.keyReleased(e);
+        }
     }
 
     private void RegisterAudioClip(){
