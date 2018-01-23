@@ -3,6 +3,8 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Point2D;
 import java.applet.AudioClip;
+import java.io.InputStream;
+import java.io.IOException;
 
 import java.util.*;
 import java.util.List;
@@ -217,7 +219,6 @@ abstract class UECPlayerBase  {
             dx = 0;
         }else{
             //デバッグ
-            NowRequestedPlayAudios.add("Punch");
             if (Debugmessage){System.out.println("Directed");}
 
             //出来ない時
@@ -322,7 +323,7 @@ class NaoChan extends UECPlayerBase{
                     switch (attackId) {
                         default:
                             NowImageName = "Punch1";
-                            NowRequestedPlayAudios.add("Nao_punch1");
+                            NowRequestedPlayAudios.add("Punch");
                             attackInfo.setInfo(new Point(100, 30), new Point(40, 40), 0, 5, 0, 9999, 10, new Point2D.Float(3f, -5f), 7, 1);
                             attackId = 1;
                             canCombo = 7;
@@ -330,7 +331,7 @@ class NaoChan extends UECPlayerBase{
                             break;
                         case 1:
                             NowImageName = "Punch2";
-                            NowRequestedPlayAudios.add("Nao_punch2");
+                            NowRequestedPlayAudios.add("Punch");
                             attackInfo.setInfo(new Point(100, 30), new Point(50, 40), 0, 5, 0, 9999, 10, new Point2D.Float(3f, -10f), 7, 2);
                             attackId = 2;
                             canCombo = 7;
@@ -338,7 +339,7 @@ class NaoChan extends UECPlayerBase{
                             break;
                         case 2:
                             NowImageName = "Kick3";
-                            NowRequestedPlayAudios.add("Nao_kick3");
+                            NowRequestedPlayAudios.add("Punch");
                             attackInfo.setInfo(new Point(100, 30), new Point(70, 40), 0, 20, 10, 9999, 10, new Point2D.Float(30f, -20f), 30, -1);
                             attackId = -1;
                             canCombo = 0;
@@ -407,10 +408,10 @@ class NaoChan extends UECPlayerBase{
 
     @Override
     public void RegisterAudioClip(TreeMap<String, AudioClip> audios) {
-        audios.put("Nao_punch1", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice1.wav")));
-        audios.put("Nao_punch2", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice2.wav")));
-        audios.put("Nao_kick3", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice3.wav")));
-        //audios.put("Nao_guard", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_guard.wav")));
+        audios.put("Nao_punch1", java.applet.Applet.newAudioClip(getClass().getResource("resources/punch1.wav")));
+        audios.put("Nao_punch2", java.applet.Applet.newAudioClip(getClass().getResource("resources/slap2.wav")));
+        audios.put("Nao_kick3", java.applet.Applet.newAudioClip(getClass().getResource("resources/kick3.wav")));
+        audios.put("Nao_guard", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_guard.wav")));
     }
 }
 
@@ -562,34 +563,34 @@ class AttackInfo{
 //-------------------------------------------------------画面構成&ゲーム管理クラス
 
 //スタート画面
-class StartFrameView extends JPanel{// implements KeyListener {
-    private JLabel character, start, option, cursole;
+class StartFrameView extends JPanel implements ActionListener{
     private UECFighter uecFighter;
     private String[] argv = new String[4];
-    private int c_point;
+    private int c_point, select_time;
+    private Image title, cursole_fist_red, cursole_fist_blue, backImage;
+    private javax.swing.Timer select; //ENTER押した後にちょっとだけ待つ用
+    private Font font;
+    private boolean flash;
+    private TreeMap<String, AudioClip> audios;
 
     public StartFrameView(UECFighter uecFighter){
         this.uecFighter = uecFighter;
         this.setSize(UECFighter.SCREEN_WIDTH, UECFighter.HEIGHT);
-        this.setBackground(Color.black);
+        this.setBackground(Color.white);
         this.setLayout(null);
-        c_point = 200;
+        setOpaque(false);
+        c_point = 250;
+        select = new javax.swing.Timer(1000, this);
+        select_time = 1;
+        audios = new TreeMap<String, AudioClip>();
 
-        cursole = new JLabel("->", JLabel.CENTER);
-        cursole.setForeground(Color.green);
-        cursole.setBounds(280, c_point, 20, 20);
-        /*character = new JLabel("キャラ選択", JLabel.CENTER);
-        character.setBounds(320, 200, 80, 20);
-        character.setForeground(Color.white);*/
-        option = new JLabel("OPTION", JLabel.CENTER);
-        option.setBounds(320, 250, 80, 20);
-        option.setForeground(Color.white);
-        start = new JLabel("START", JLabel.CENTER);
-        start.setBounds(320, 200, 80, 20);
-        start.setForeground(Color.white);
-        this.add(cursole);
-        this.add(option);
-        this.add(start);
+        //データの登録
+        RegisterAudioClip();
+        title = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/uec_fighter.png"));
+        cursole_fist_red = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/fire_red.png"));
+        cursole_fist_blue = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/fire_blue.png"));
+        backImage = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/uec_back.jpg"));
+        this.loadFont("resources/V-GERB(bold).ttf");
 
         this.repaint();
     }
@@ -604,18 +605,26 @@ class StartFrameView extends JPanel{// implements KeyListener {
         int keycode = e.getKeyCode();
         switch(keycode){
             case KeyEvent.VK_UP:
-                if(c_point > 200) c_point -= 50;
+                if(c_point > 250){
+                     c_point -= 80;
+                     PlaySoundEffect("Select");
+                }
                 this.repaint();
                 break;
             case KeyEvent.VK_DOWN:
-                if(c_point < 250) c_point += 50;
+                if(c_point < 330) {
+                    c_point += 80;
+                    PlaySoundEffect("Select");
+                }
                 this.repaint();
                 break;
             case KeyEvent.VK_ENTER:
-                if(c_point == 200)
-                    uecFighter.callScene(1);
-                else
+                if(c_point == 250){
+                    PlaySoundEffect("Decision");
+                    select.start();
+                }else{
                     uecFighter.callScene(3);
+                }
                 break;
         }
     }
@@ -626,8 +635,45 @@ class StartFrameView extends JPanel{// implements KeyListener {
     }
 
     public void paint(Graphics g){
+        g.drawImage(backImage, 0, 0, UECFighter.SCREEN_WIDTH, UECFighter.SCREEN_HEIGHT, this);
         super.paint(g);
-        cursole.setBounds(250, c_point, 20, 20);
+        g.drawImage(title, 60, 20, 600, 233, this);
+        g.drawImage(cursole_fist_red, 170, c_point, 80, 50, this);
+        g.drawImage(cursole_fist_blue, 450, c_point, 80, 50, this);
+        g.setFont(font);
+        g.setColor(Color.black);
+        g.drawString("START", 270, 300);
+        g.drawString("OPTION", 260, 380);
+    }
+
+    public void loadFont(String filename){
+        try {
+            InputStream is = getClass().getResourceAsStream(filename);
+            font = Font.createFont(Font.TRUETYPE_FONT, is);
+            font = font.deriveFont(50.0f);
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }catch (FontFormatException ffe){
+            ffe.printStackTrace();
+        }
+    }
+
+    public void actionPerformed(ActionEvent e){
+        select_time--;
+        if(select_time == 0){
+            select.stop();
+            uecFighter.callScene(1);
+        }
+    }
+
+    private void RegisterAudioClip(){
+        audios.put("Select", java.applet.Applet.newAudioClip(getClass().getResource("resources/slap2.wav")));
+        audios.put("Decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice1.wav")));
+    }
+
+    private void PlaySoundEffect(String soundName){
+        AudioClip audioClip = audios.get(soundName);
+        audioClip.play();
     }
 }
 
@@ -640,49 +686,43 @@ class PlayerSelect extends JPanel {
     private UECFighter uecFighter;
     private JLabel player1, player2, p_1, p_2, OK_1, OK_2;    //player
     //private JButton p_1, p_2;
-    private int p_enabled[], p_x[], p_y[], p_num,
+    private int p_enabled[], p_num,
                 p1_right, p1_left, p1_up, p1_down, p1_OK, p1_cancel,
                 p2_right, p2_left, p2_up, p2_down, p2_OK, p2_cancel;
-    private boolean p_selected[];
-    private ImageIcon image_1, image_2;
-    private Image img[];
-    private Point p1, p2;
+    private boolean p_selected[]; //選択されているかどうかを判定 1P...selected[0], 2P...selected[1]
+    private Image img[], backImage, img_kiu, img_nao, img_1p, img_2p;
+    private Font font, font_name; //fontをいじる際に使用
+    private TreeMap<String, AudioClip> audios; //音声
 
     public PlayerSelect(UECFighter uecFighter){
         this.uecFighter = uecFighter;
         p_num = 2;
         p_enabled = new int[p_num];
-        p_x = new int[p_num];
-        p_y = new int[p_num];
         img = new Image[2];
         p_selected = new boolean[p_num];
         for(int i=0; i<p_num; i++){
             p_selected[i] = false;
-            p_enabled[i] = 0;
-            p_x[i] = 50 + 60*i;
-            p_y[i] = 50;
+            p_enabled[i] = 0; //0がKIU, 1がNAO
         }
         p1_right = KeyEvent.VK_D; p1_left = KeyEvent.VK_A; //p1_up = KeyEvent.VK_W; p1_down = KeyEvent.VK_S;
         p1_OK = KeyEvent.VK_C; p1_cancel = KeyEvent.VK_V;
         p2_right = KeyEvent.VK_L; p2_left = KeyEvent.VK_J; //p2_up = KeyEvent.VK_I; p2_down = KeyEvent.VK_K;
         p2_OK = KeyEvent.VK_COMMA; p2_cancel = KeyEvent.VK_PERIOD;
         this.setSize(UECFighter.SCREEN_WIDTH, UECFighter.SCREEN_HEIGHT);
-        this.setBackground(Color.black);
-        this.setLayout(null);
-        image_1 = new ImageIcon("resources/kiuch.JPG");
-        image_2 = new ImageIcon("resources/takayuki.jpg");
-        img[0] = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/kiuch.JPG"));
-        img[1] = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/takayuki.jpg"));
-        p1 = new Point(10, 10);
-        p2 = new Point(10, 60);
-        p_1 = new JLabel(image_1);
-        p_2 = new JLabel(image_2);
-        p_1.setBounds(p_x[0], p_y[0], 50, 50);
-        p_2.setBounds(p_x[1], p_y[1], 50, 50);
-        p_1.setOpaque(true);
-        p_2.setOpaque(true);
-        this.add(p_1);
-        this.add(p_2);
+        setOpaque(false); //背景を透明に(これをしないと背景に画像貼れない)
+
+        //データの登録
+        backImage = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/china_back.jpg"));
+        img_1p = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/1P.png"));
+        img_2p = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/2P.png"));
+        img_kiu = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/Kiu_sentaku.png"));
+        img_nao = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/Nao_sentaku.png"));
+        img[0] = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/Kiu_walk.png"));
+        img[1] = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/Nao_stand.png"));
+        font = loadFont("resources/V-GERB(bold).ttf", 50.0f);
+        font_name = loadFont("resources/V-GERB(bold).ttf", 15.0f);
+        audios = new TreeMap<String, AudioClip>();
+        RegisterAudioClip();
     }
 
     public void keyTyped(KeyEvent e){
@@ -691,23 +731,45 @@ class PlayerSelect extends JPanel {
 
     public void keyPressed(KeyEvent e){
         int key = e.getKeyCode();
-        if(key == p1_right){
-            p_enabled[0] += 1;
-        }else if(key == p1_left){
-            p_enabled[0] -= 1;
-        }else if(key == p2_right){
-            p_enabled[1] += 1;
-        }else if(key == p2_left){
-            p_enabled[1] -= 1;
-        }else if(key == p1_OK){
+        if(!p_selected[0]){
+            if(key == p1_right){
+                if(p_enabled[0]<1){
+                    p_enabled[0] += 1;
+                }
+            }if(key == p1_left){
+                if(p_enabled[0]>0){
+                    p_enabled[0] -= 1;
+                }
+            }
+        }if(!p_selected[1]){
+            if(key == p2_right){
+                if(p_enabled[1]<1){
+                    p_enabled[1] += 1;
+                }
+            }if(key == p2_left){
+                if(p_enabled[1]>0){
+                    p_enabled[1] -= 1;
+                }
+            }
+        }if(key == p1_OK){
+            if(p_enabled[0] == 0){
+                PlaySoundEffect("Kiu_decision");
+            }else {
+                PlaySoundEffect("Nao_decision");
+            }
             p_selected[0] = true;
-        }else if(key == p2_OK){
+        }if(key == p2_OK){
+            if(p_enabled[1] == 0){
+                PlaySoundEffect("Kiu_decision");
+            }else {
+                PlaySoundEffect("Nao_decision");
+            }
             p_selected[1] = true;
-        }else if(key == p1_cancel){
+        }if(key == p1_cancel){
             p_selected[0] = false;
-        }else if(key == p2_cancel){
+        }if(key == p2_cancel){
             p_selected[1] = false;
-        }else if(key == KeyEvent.VK_ENTER){
+        }if(key == KeyEvent.VK_ENTER){
             if(p_selected[0] && p_selected[1]){
                 uecFighter.callScene(2);
             }
@@ -721,48 +783,120 @@ class PlayerSelect extends JPanel {
 
     @Override
     public void paint(Graphics g){
+        g.drawImage(backImage, 0, 0, UECFighter.SCREEN_WIDTH, UECFighter.SCREEN_HEIGHT, this);
         super.paint(g);
 
+        g.setFont(font);
+        g.setColor(Color.white);
+        g.drawString("PLAYER SELECT", 170, 50);
+        g.setColor(new Color(255, 255, 255, 50));
+        g.fillOval(100, 70, 200, 300);
+        g.fillOval(420, 70, 200, 300);
+
+        //player's Icon
+        g.drawImage(img_kiu, 270, 400, 80, 80, this);
+        g.drawImage(img_nao, 370, 400, 80, 80, this);
+        g.setFont(font_name);
+        g.drawString("KIUCHI", 280, 500);
+        g.drawString("NAOCHAN", 380, 500);
+
+        //カーソル
+        g.drawImage(img_1p, 150, 320, 100, 50, this);
+        g.drawImage(img_2p, 470, 320, 100, 50, this);
         for(int i=0; i<p_num; i++){
+            g.drawImage(img_1p, 270+(p_enabled[0])*100-22, 398, 20, 10, this);
+            g.drawImage(img_2p, 270+(p_enabled[1])*100-22, 410, 20, 10, this);
+
             g.setColor(Color.red);
-            g.drawRect(50+(p_enabled[0])*60-2, p_y[0]-2, 52, 52);
-            g.fillOval(50+(p_enabled[0])*60-12, p_y[0]-2, 10, 10);
-            g.fillRect(190, 290, 120, 120);
+            g.drawRect(270+(p_enabled[0])*100-2, 398, 82, 82);
             g.setColor(Color.blue);
-            g.drawRect(50+(p_enabled[1])*60-2, p_y[1]-2, 52, 52);
-            g.fillOval(50+(p_enabled[1])*60-12, p_y[1]+8, 10, 10);
-            g.fillRect(440, 290, 120, 120);
+            g.drawRect(270+(p_enabled[1])*100-2, 398, 82, 82);
         }
-        if(p_selected[0] == true){
-            g.drawImage(img[p_enabled[0]], 200, 300, 100, 100, this);
+
+        //選択された後の描画
+        g.drawImage(img[p_enabled[0]], 50, 60, 300, 300, this);
+        g.drawImage(img[p_enabled[1]], 670, 60, -300, 300, this);
+        if(p_selected[0]){
+            g.setFont(font);
+            g.setColor(Color.red);
+            g.drawString("OK!", 50, 370);
         }
-        if(p_selected[1] == true){
-            g.drawImage(img[p_enabled[1]], 450, 300, 100, 100, this);
+        if(p_selected[1]){
+            g.setFont(font);
+            g.setColor(Color.blue);
+            g.drawString("OK!", 600, 370);
         }
+
+        //決定
+        if(p_selected[0] && p_selected[1]){
+            g.setColor(Color.black);
+            g.fillRect(0, 190, UECFighter.SCREEN_WIDTH, 60);
+            g.setColor(new Color(255, 255, 0));
+            g.setFont(font);
+            g.drawString("START!", 200, 240);
+            g.setFont(font_name);
+            g.drawString("PRESS ENTER", 400, 240);
+        }
+    }
+
+    public Font loadFont(String filename, float size){
+        try {
+            InputStream is = getClass().getResourceAsStream(filename);
+            Font font = Font.createFont(Font.TRUETYPE_FONT, is);
+            font = font.deriveFont(size);
+            return font;
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }catch (FontFormatException ffe){
+            ffe.printStackTrace();
+        }
+        return font;
+    }
+
+    private void RegisterAudioClip(){
+        audios.put("Select", java.applet.Applet.newAudioClip(getClass().getResource("resources/slap2.wav")));
+        audios.put("Kiu_decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_sentaku.wav")));
+        audios.put("Nao_decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_sentaku.wav")));
+    }
+
+    private void PlaySoundEffect(String soundName){
+        AudioClip audioClip = audios.get(soundName);
+        audioClip.play();
     }
 }
 
 //試合時間を管理
 class GameTime implements ActionListener{
     private javax.swing.Timer gameTime;
+    private int starttime;
     private int time;
 
     public GameTime(int time){
         this.time = time;
+        starttime = 4;
         gameTime = new javax.swing.Timer(1000, this);
         gameTime.start();
     }
 
-    public String getTime(){
-        return String.format("%d", time);
-    }
+    public String getTime(){ return String.format("%d", time); }
+
+    public int getstart(){ return starttime;}
 
     public void setTime(){
-        time--;
+        if(starttime > 0){
+            starttime--;
+        }
+        if(starttime == 0){
+            time--;
+        }
     }
 
     public void actionPerformed(ActionEvent e){
         this.setTime();
+    }
+
+    public void stop(){
+        gameTime.stop();
     }
 }
 
@@ -771,7 +905,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
     private java.util.Timer gameThread;//ゲーム用スレッド
     private UECFighter uecFighter;
     private GameTime gameTime;
-    private JLabel timeLabel;
+    private JLabel timeLabel, starttime;
     private int scene; //ゲームのシーンをmanegementする為の変数
 
     private UECPlayerBase player1, player2;
@@ -779,6 +913,8 @@ class UECFrameView extends JPanel {//implements KeyListener{
     private Point p1size, p2size, p1range, p2range, p1startRange, p2startRange;
     private Image p1image, p2image, p1here, p2here;
     private AttackInfo p1AttackInfo, p2AttackInfo;
+    private Font font;
+    private MediaTracker tracker;
 
     private TreeMap<String, AudioClip> audios;
 
@@ -817,8 +953,10 @@ class UECFrameView extends JPanel {//implements KeyListener{
         RegisterAudioClip();
 
         gameTime = new GameTime(120);
+        font = new Font(Font.SANS_SERIF,Font.BOLD, 80);
+
         Font font = new Font(Font.SANS_SERIF, JLabel.CENTER, 32);
-        timeLabel = new JLabel("120", JLabel.CENTER);
+        timeLabel = new JLabel(gameTime.getTime(), JLabel.CENTER);
         timeLabel.setBackground(Color.WHITE);
         timeLabel.setBounds(320, 0, 80, 80);
         timeLabel.setFont(font);
@@ -931,6 +1069,25 @@ class UECFrameView extends JPanel {//implements KeyListener{
         PlaySoundEffect(player2.getNowRequestedPlayAudio());
 
         timeLabel.setText(gameTime.getTime());
+        g.setFont(font);
+        g.setColor(Color.red);
+        switch(gameTime.getstart()){
+            case 2:
+                g.drawString("Ready", 260, 240);
+                break;
+            case 1:
+                g.drawString("GO!", 300, 240);
+                break;
+        }
+        if(player1.getHP() <= 0){
+            g.drawString("2P WIN!!", 220, 240);
+            gameTime.stop();
+            //playerの操作(false);
+        }else if(player2.getHP() <= 0){
+            g.drawString("1P WIN!!", 220, 240);
+            gameTime.stop();
+            //playerの操作(false);
+        }
 
         //当たり判定デバッグ用
         p1AttackInfo.print(g, p1position);
@@ -968,7 +1125,6 @@ class UECFrameView extends JPanel {//implements KeyListener{
             String soundName = reqestedSoundNames.remove(0);
             AudioClip audioClip = audios.get(soundName);
             audioClip.play();
-
         }
     }
 
