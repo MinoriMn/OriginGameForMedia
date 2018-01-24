@@ -1069,7 +1069,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
     private UECFighter uecFighter;
     private GameTime gameTime;
     private JLabel timeLabel, starttime;
-    private int scene; //ゲームのシーンをmanegementする為の変数
+    private int scene, time; //ゲームのシーンをmanegementする為の変数
     private boolean canOperate;
 
     private UECPlayerBase player1, player2;
@@ -1082,28 +1082,41 @@ class UECFrameView extends JPanel {//implements KeyListener{
 
     private TreeMap<String, AudioClip> audios;
 
-    public UECFrameView(UECFighter uecFighter, int P1, int P2){
+    //コンストラクタの引数 P1,P2はKiu,Naoのどちらを描画するか決めるために使う。0がKiu,1がNao
+    public UECFrameView(UECFighter uecFighter, int P1, int P2, int time){
         this.uecFighter = uecFighter;
         this.setSize(UECFighter.SCREEN_WIDTH, UECFighter.HEIGHT);
         this.setBackground(new Color(150,255,255));
         this.setLayout(null);
         canOperate = false;
-        System.out.println(Integer.toString(P1));
-        System.out.println(Integer.toString(P2));
 
         //プレイヤー1
         float p1magnification = 2f;
         p1size = new Point((int) (120 * p1magnification), (int) (120 * p1magnification));
         p1range = new Point((int) (30 * p1magnification), (int) (70 * p1magnification));
         p1startRange = new Point((int) (45 * p1magnification), (int) (50 * p1magnification));
-        player1 = new NaoChan(KeyEvent.VK_W, KeyEvent.VK_S, KeyEvent.VK_A, KeyEvent.VK_D,  KeyEvent.VK_C, KeyEvent.VK_V, 0, UECFighter.SCREEN_HEIGHT-p1size.y, p1magnification, p1size, p1range, p1startRange, true);
+        switch(P1){
+            case 0:
+                player1 = new Kiuchinp(KeyEvent.VK_W, KeyEvent.VK_S, KeyEvent.VK_A, KeyEvent.VK_D,  KeyEvent.VK_C, KeyEvent.VK_V, 0, UECFighter.SCREEN_HEIGHT-p1size.y, p1magnification, p1size, p1range, p1startRange, true);
+                break;
+            case 1:
+                player1 = new NaoChan(KeyEvent.VK_W, KeyEvent.VK_S, KeyEvent.VK_A, KeyEvent.VK_D,  KeyEvent.VK_C, KeyEvent.VK_V, 0, UECFighter.SCREEN_HEIGHT-p1size.y, p1magnification, p1size, p1range, p1startRange, true);
+                break;
+        }
 
         //プレイヤー2
         float p2magnification = 2f;
         p2size = new Point((int) (120 * p2magnification), (int) (120 * p2magnification));
         p2range = new Point((int) (30 * p2magnification), (int) (70 * p2magnification));
         p2startRange = new Point((int) (45 * p2magnification), (int) (50 * p2magnification));
-        player2 = new Kiuchinp(KeyEvent.VK_I, KeyEvent.VK_K, KeyEvent.VK_J, KeyEvent.VK_L,  KeyEvent.VK_COMMA, KeyEvent.VK_PERIOD, UECFighter.SCREEN_WIDTH-p2size.x, UECFighter.SCREEN_HEIGHT-p2size.y, p2magnification, p2size, p2range, p2startRange, false);
+        switch(P2){
+            case 0:
+                player2 = new Kiuchinp(KeyEvent.VK_I, KeyEvent.VK_K, KeyEvent.VK_J, KeyEvent.VK_L,  KeyEvent.VK_COMMA, KeyEvent.VK_PERIOD, UECFighter.SCREEN_WIDTH-p2size.x, UECFighter.SCREEN_HEIGHT-p2size.y, p2magnification, p2size, p2range, p2startRange, false);
+                break;
+            case 1:
+                player2 = new NaoChan(KeyEvent.VK_I, KeyEvent.VK_K, KeyEvent.VK_J, KeyEvent.VK_L,  KeyEvent.VK_COMMA, KeyEvent.VK_PERIOD, UECFighter.SCREEN_WIDTH-p2size.x, UECFighter.SCREEN_HEIGHT-p2size.y, p2magnification, p2size, p2range, p2startRange, false);
+                break;
+        }
 
         //互いの対戦相手の情報を交換する
         player1.setOpponentPlayer(player2);
@@ -1119,7 +1132,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
         audios = new TreeMap<String, AudioClip>();
         RegisterAudioClip();
 
-        gameTime = new GameTime(120);
+        gameTime = new GameTime(time);
         font = new Font(Font.SANS_SERIF,Font.BOLD, 80);
 
         Font font = new Font(Font.SANS_SERIF, JLabel.CENTER, 32);
@@ -1312,15 +1325,114 @@ class UECFrameView extends JPanel {//implements KeyListener{
             audioClip.play();
         }
     }
+}
 
+//オプしション画面
+class Option extends JPanel {
+    private UECFighter uecFighter;
+    private Font font, option;
+    private Image backImage, change, fist;
+    private int enabled, cursor, time;
+
+    public Option(UECFighter uecFighter){
+        this.uecFighter = uecFighter;
+        font = loadFont("resources/V-GERB(bold).ttf", 50.0f);
+        option = loadFont("resources/V-GERB(bold).ttf", 30.0f);
+        cursor = 0;
+        enabled = 50;
+        time = 120;
+        backImage = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/china_back.jpg"));
+        fist = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/fire_red.png"));
+        change = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/cursor1.png"));
+        setOpaque(false);
+    }
+
+    @Override
+    public void paint(Graphics g){
+        g.drawImage(backImage, 0, 0, UECFighter.SCREEN_WIDTH, UECFighter.SCREEN_HEIGHT, this);
+        super.paint(g);
+        g.setColor(Color.white);
+        g.setFont(font);
+        g.drawString("OPTION", 280, 50);
+        g.setFont(option);
+        g.setColor(new Color(50, 50, 50));
+        g.fillRect(130, 450, 300, 50);
+        g.fillRect(130, 150, 520, 50);
+        g.setColor(Color.white);
+        g.drawString("TIME", 150, 185);
+        g.drawString("OK!!", 150, 485);
+        g.drawImage(fist, 50, 150+100*cursor, 70, 50, this);
+        g.drawImage(change, 300, 160, 30, 30, this);
+        g.drawImage(change, 465, 160, -30, 30, this);
+        g.setColor(new Color(200, 200, 0));
+        g.drawString(Integer.toString(time), 360, 185);
+        g.drawString("SEC", 500, 185);
+    }
+
+    public Font loadFont(String filename, float size){
+        try {
+            InputStream is = getClass().getResourceAsStream(filename);
+            Font font = Font.createFont(Font.TRUETYPE_FONT, is);
+            font = font.deriveFont(size);
+            return font;
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }catch (FontFormatException ffe){
+            ffe.printStackTrace();
+        }
+        return font;
+    }
+
+    public void keyPressed(KeyEvent e){
+        int key = e.getKeyCode();
+        switch(key){
+            case KeyEvent.VK_ENTER:
+                if(cursor == 3){
+                    uecFighter.setTime(time);
+                    uecFighter.callScene(0);
+                }
+                break;
+            case KeyEvent.VK_UP:
+                if(cursor > 0){
+                    cursor -= 3;
+                }
+                break;
+            case KeyEvent.VK_DOWN:
+                if(cursor < 3){
+                    cursor += 3;
+                }
+                break;
+            case KeyEvent.VK_LEFT:
+                if(cursor == 0){
+                    if(time > 60){
+                        time -= 60;
+                    }
+                }
+                break;
+            case KeyEvent.VK_RIGHT:
+                if(cursor == 0){
+                    if(time < 300){
+                        time += 60;
+                    }
+                }
+                break;
+        }
+        this.repaint();
+    }
+
+    public void keyReleased(KeyEvent e){
+
+    }
 }
 
 public class UECFighter extends JFrame implements KeyListener{
     private UECFrameView uecFrameView;
     private StartFrameView startFrameView;
     private PlayerSelect playerselect;
-    private int P1, P2;
+    private Option option;
+    private int P1, P2, time;
     private static int scene = 0;
+    private boolean optioned;
     public final static int SCREEN_WIDTH = 720, SCREEN_HEIGHT = 600;
 
     public UECFighter(){
@@ -1337,6 +1449,11 @@ public class UECFighter extends JFrame implements KeyListener{
         this.setScene(scene);
         switch(scene){
             case 0: //スタート画面
+                if(optioned){
+                    option.setVisible(false);
+                    this.remove(option);
+                    optioned = false;
+                }
                 startFrameView = new StartFrameView(this);
                 this.add(startFrameView);
                 break;
@@ -1349,11 +1466,15 @@ public class UECFighter extends JFrame implements KeyListener{
             case 2: //ゲーム画面
                 playerselect.setVisible(false);
                 this.remove(playerselect);
-                uecFrameView = new UECFrameView(this, P1, P2);
+                uecFrameView = new UECFrameView(this, P1, P2, time);
                 this.add(uecFrameView);
                 break;
             case 3: //オプション画面
                 startFrameView.setVisible(false);
+                this.remove(startFrameView);
+                optioned = true;
+                option = new Option(this);
+                this.add(option);
                 break;
         }
     }
@@ -1366,23 +1487,25 @@ public class UECFighter extends JFrame implements KeyListener{
     @Override
     public void keyPressed(KeyEvent e){
         if(scene == 0) startFrameView.keyPressed(e);
-        else if(scene == 2) uecFrameView.keyPressed(e);
         else if(scene == 1) playerselect.keyPressed(e);
+        else if(scene == 2) uecFrameView.keyPressed(e);
+        else if(scene == 3) option.keyPressed(e);
     }
 
     @Override
     public void keyReleased(KeyEvent e){
         if(scene == 0) startFrameView.keyReleased(e);
+        else if(scene == 1) playerselect.keyPressed(e);
         else if(scene == 2) uecFrameView.keyReleased(e);
+        else if(scene == 3) option.keyReleased(e);
     }
 
-    public void setScene(int scene){
-        this.scene = scene;
-    }
+    public void setScene(int scene){ this.scene = scene; }
 
-    public void setPlayer(int P1, int P2){
-        this.P1 = P1; this.P2 = P2;
-    }
+    public void setTime(int time) { this.time = time; }
+
+    //UECFrameViewでどのplayerを描画するかを決めるための関数
+    public void setPlayer(int P1, int P2){ this.P1 = P1; this.P2 = P2; }
 
     public static void main(String argv[]){
         new UECFighter();
