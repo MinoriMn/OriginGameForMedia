@@ -773,6 +773,8 @@ class PlayerSelect extends JPanel {
             p_selected[1] = false;
         }if(key == KeyEvent.VK_ENTER){
             if(p_selected[0] && p_selected[1]){
+                PlaySoundEffect("START");
+                uecFighter.setPlayer(p_enabled[0], p_enabled[1]);
                 uecFighter.callScene(2);
             }
         }
@@ -860,6 +862,7 @@ class PlayerSelect extends JPanel {
         audios.put("Kiu_decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_sentaku.wav")));
         audios.put("Nao_decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_sentaku.wav")));
         audios.put("Decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/decision.wav")));
+        audios.put("START", java.applet.Applet.newAudioClip(getClass().getResource("resources/kick3.wav")));
     }
 
     private void PlaySoundEffect(String soundName){
@@ -921,12 +924,14 @@ class UECFrameView extends JPanel {//implements KeyListener{
 
     private TreeMap<String, AudioClip> audios;
 
-    public UECFrameView(UECFighter uecFighter){
+    public UECFrameView(UECFighter uecFighter, int P1, int P2){
         this.uecFighter = uecFighter;
         this.setSize(UECFighter.SCREEN_WIDTH, UECFighter.HEIGHT);
         this.setBackground(new Color(150,255,255));
         this.setLayout(null);
         canOperate = false;
+        System.out.println(Integer.toString(P1));
+        System.out.println(Integer.toString(P2));
 
         //プレイヤー1
         float p1magnification = 2f;
@@ -967,7 +972,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
         timeLabel.setOpaque(true);
         this.add(timeLabel);
 
-        //デバッグ用
+        //用
         player1.setDebugmessage(false);
         player2.setDebugmessage(true);
 
@@ -1078,8 +1083,15 @@ class UECFrameView extends JPanel {//implements KeyListener{
         if(gameTime.getstart()==0){
             canOperate = true;
         }
-        if(gameTime.getTime()==0 || player1.getHP()<=0 || player2.getHP()<=0){
+        if(gameTime.getTime()==0){
             canOperate = false;
+            if(player1.getHP() > player2.getHP()){
+                g.drawString("1P WIN!!", 220, 240);
+            }else if(player1.getHP() < player2.getHP()){
+                g.drawString("2P WIN!!", 220, 240);
+            }else {
+                g.drawString("DRAW!!", 250, 240);
+            }
         }
         switch(gameTime.getstart()){
             case 2:
@@ -1092,14 +1104,14 @@ class UECFrameView extends JPanel {//implements KeyListener{
         if(player1.getHP() <= 0){
             g.drawString("2P WIN!!", 220, 240);
             gameTime.stop();
-            //playerの操作(false);
+            canOperate = false;
         }else if(player2.getHP() <= 0){
             g.drawString("1P WIN!!", 220, 240);
             gameTime.stop();
-            //playerの操作(false);
+            canOperate = false;
         }
 
-        //当たり判定デバッグ用
+        //当たり判定用
         p1AttackInfo.print(g, p1position);
         p2AttackInfo.print(g, p2position);
         //
@@ -1153,6 +1165,7 @@ public class UECFighter extends JFrame implements KeyListener{
     private UECFrameView uecFrameView;
     private StartFrameView startFrameView;
     private PlayerSelect playerselect;
+    private int P1, P2;
     private static int scene = 0;
     public final static int SCREEN_WIDTH = 720, SCREEN_HEIGHT = 600;
 
@@ -1182,7 +1195,7 @@ public class UECFighter extends JFrame implements KeyListener{
             case 2: //ゲーム画面
                 playerselect.setVisible(false);
                 this.remove(playerselect);
-                uecFrameView = new UECFrameView(this);
+                uecFrameView = new UECFrameView(this, P1, P2);
                 this.add(uecFrameView);
                 break;
             case 3: //オプション画面
@@ -1211,6 +1224,10 @@ public class UECFighter extends JFrame implements KeyListener{
 
     public void setScene(int scene){
         this.scene = scene;
+    }
+
+    public void setPlayer(int P1, int P2){
+        this.P1 = P1; this.P2 = P2;
     }
 
     public static void main(String argv[]){
