@@ -46,5 +46,5 @@
 * 12/28
   - HPの表示を作りました。class ChinChinPlayerBaseに、メソッドgetHPとsetHPを追加しました。
 * 1/24
-  - スタート画面とキャラ選択画面はこれで確定で行こうかなと思います。試合中は最初と最後はブール変数canOperateで管理して、操作ができないようにしておきました。UECFrameViewにplayerを決めるための引数P1,P2を追加しました。それぞれ0ならnew Kiuchi,1ならnew Naochanとしてください。
+  - スタート画面とキャラ選択画面はこれで確定で行こうかなと思います。試合中は最初と最後はブール変数canOperateで管理して、操作ができないようにしておきました。UECFrameViewにplayerを決めるための引数P1,P2を追加しました。それぞれ0ならnew Kiuchi,1ならnew Naochanとしてください。
   - 追記。OPTION画面作っときました。まだ時間設定の部分しか作ってないけど。
