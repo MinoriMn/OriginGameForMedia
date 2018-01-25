@@ -476,9 +476,9 @@ class NaoChan extends UECPlayerBase{
 }
 
 //操作キャラ
-class Kiuchinp extends UECPlayerBase{
+class Shunchan extends UECPlayerBase{
 
-    public Kiuchinp(int K_UP, int K_DOWN, int K_LEFT, int K_RIGHT, int K_WeakAttack, int K_StrongAttack, float positionX, float positionY, float magnification, Point size, Point range, Point startRange, boolean is_Right){
+    public Shunchan(int K_UP, int K_DOWN, int K_LEFT, int K_RIGHT, int K_WeakAttack, int K_StrongAttack, float positionX, float positionY, float magnification, Point size, Point range, Point startRange, boolean is_Right){
         super(K_UP, K_DOWN, K_LEFT, K_RIGHT, K_WeakAttack, K_StrongAttack, positionX, magnification, size, range, startRange, is_Right);
         HP = 120;//体力セット
     }
@@ -1022,7 +1022,7 @@ class PlayerSelect extends JPanel {
         g.drawImage(img_kiu, 270, 400, 80, 80, this);
         g.drawImage(img_nao, 370, 400, 80, 80, this);
         g.setFont(font_name);
-        g.drawString("KIUCHI", 280, 500);
+        g.drawString("SHUNCHAN", 270, 500);
         g.drawString("NAOCHAN", 380, 500);
 
         //カーソル
@@ -1399,7 +1399,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
                 size = new Point((int) (120 * p2magnification), (int) (120 * p2magnification));
                 range = new Point((int) (30 * p2magnification), (int) (70 * p2magnification));
                 startRange = new Point((int) (45 * p2magnification), (int) (50 * p2magnification));
-                chosenChar = new Kiuchinp(ButtonId[0], ButtonId[1], ButtonId[2], ButtonId[3],  ButtonId[4], ButtonId[5], isP1 ? 0 : UECFighter.SCREEN_WIDTH-size.x, UECFighter.SCREEN_HEIGHT-size.y, p2magnification, size, range, startRange, false);
+                chosenChar = new Shunchan(ButtonId[0], ButtonId[1], ButtonId[2], ButtonId[3],  ButtonId[4], ButtonId[5], isP1 ? 0 : UECFighter.SCREEN_WIDTH-size.x, UECFighter.SCREEN_HEIGHT-size.y, p2magnification, size, range, startRange, false);
 
                 break;
             case 1://Naochan
