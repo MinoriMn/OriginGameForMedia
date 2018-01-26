@@ -14,7 +14,7 @@ import java.util.List;
 abstract class UECPlayerBase  {
     private final int K_UP, K_DOWN, K_LEFT, K_RIGHT, K_WeakAttack, K_StrongAttack;//操作ボタンコード
     protected boolean bK_UP = false, bK_DOWN = false, bK_LEFT = false, bK_RIGHT = false, bK_WeakAttack = false, bK_StrongAttack = false;//操作ボタンのフラグ
-    protected boolean is_Jump = false, is_HighJump = false, is_Dash = false, is_Squat = false, is_Down;//ジャンプ,二段ジャンプ中かダッシュ中かしゃがみ中かダウン中かどうか
+    protected boolean is_Jump = false, is_HighJump = false, is_Dash = false, is_Squat = false, is_Down, did_PlayWin = false;//ジャンプ,二段ジャンプ中かダッシュ中かしゃがみ中かダウン中かどうか
     protected int walkCount;//歩いている時に足踏みを管理する
 
     protected boolean canAttack = true, canDown = false;//攻撃行動できるか,ダウンできるかどうか
@@ -231,7 +231,7 @@ abstract class UECPlayerBase  {
     public boolean ConfirmDamage(Point2D.Float Force, int Stun, int damage, boolean canDown){
         if(canBlock){
             //ブロック出来る時
-            NowRequestedPlayAudios.add("Nao_guard");
+            NowRequestedPlayAudios.add("guard");
             NowImageName = "Guard";
 
             HP -= damage/5;
@@ -361,6 +361,7 @@ class NaoChan extends UECPlayerBase{
                     switch (attackId) {
                         default:
                             NowImageName = "FlyingKick";
+                            NowRequestedPlayAudios.add("Nao_kick3");
                             attackInfo.setInfo(new Point(80, 0), new Point(20, 30), 0, 10, 10, 9999, 5, new Point2D.Float(20f, 0f), 2, 2, false);
                             attackId = -1;
                             canCombo = 0;
@@ -388,7 +389,7 @@ class NaoChan extends UECPlayerBase{
                         break;
                     case 11:
                         NowImageName = "StrongPunch";
-                        attackInfo.setInfo(new Point(70, 50), new Point(50, 20), 0, 15, 15, 5, 5, new Point2D.Float(25f, -10f), 20, -1 ,false);
+                        attackInfo.setInfo(new Point(70, 50), new Point(50, 20), 0, 15, 15, 5, 8, new Point2D.Float(25f, -10f), 20, -1 ,false);
                         attackId = -1;
                         canCombo = 0;
                         canAttack = false;
@@ -453,7 +454,7 @@ class NaoChan extends UECPlayerBase{
         audios.put("Nao_punch1", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice1.wav")));
         audios.put("Nao_punch2", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice2.wav")));
         audios.put("Nao_kick3", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice3.wav")));
-        audios.put("Nao_guard", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_guard.wav")));
+        audios.put("Nao_win", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_win.wav")));
     }
 
     @Override
@@ -461,6 +462,10 @@ class NaoChan extends UECPlayerBase{
         switch (WinOrLoseOrDraw){
             case 0://Win
                 NowImageName = "Win";
+                if(!did_PlayWin){
+                    NowRequestedPlayAudios.add("Nao_win");
+                    did_PlayWin = true;
+                }
                 break;
             case 1://Lose
 
@@ -494,6 +499,13 @@ class Shunchan extends UECPlayerBase{
     }
 
     @Override
+    public boolean ConfirmDamage(Point2D.Float Force, int Stun, int damage, boolean canDown){
+        if(!canBlock){NowRequestedPlayAudios.add("Kiu_damage");}
+        return super.ConfirmDamage(Force, Stun, damage, canDown);
+    }
+
+
+    @Override
     protected void WeakAttack(boolean Pressed) {
         /*
         attackInfo.setInfo(
@@ -525,7 +537,8 @@ class Shunchan extends UECPlayerBase{
                         case 1:
                             NowImageName = "Kick3";
                             NowRequestedPlayAudios.add("Kiu_attack3");
-                            attackInfo.setInfo(new Point(100, 40), new Point(80, 10), 0, 20, 30, 9999, 30, new Point2D.Float(10f, -30f), 50, -1, true);
+                            NowRequestedPlayAudios.add("Kiu_beam");
+                            attackInfo.setInfo(new Point(100, 40), new Point(50, 10), 0, 20, 30, 2, 4, new Point2D.Float(10f, -10f), 10, -1, false);
                             attackId = -1;
                             canCombo = 0;
                             canAttack = false;
@@ -552,12 +565,7 @@ class Shunchan extends UECPlayerBase{
     protected void StrongAttack(boolean Pressed) {
         if(canAttack) {
             if (Pressed) {
-                switch (attackId) {
-                    case -1:
-                        attackInfo.setInfo(new Point(10, 10), new Point(40, 40), 15, 20, 10, 9999,10, new Point2D.Float(40f,10f), 20, 11, true);
-                        canAttack = false;
-                        break;
-                }
+
             }
         }
     }
@@ -614,7 +622,9 @@ class Shunchan extends UECPlayerBase{
         audios.put("Kiu_attack1", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_attack1.wav")));
         audios.put("Kiu_attack2", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_attack2.wav")));
         audios.put("Kiu_attack3", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_attack3.wav")));
-        audios.put("Kiu_guard", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_guard.wav")));
+        audios.put("Kiu_damage", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_guard.wav")));
+        audios.put("Kiu_win", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_win.wav")));
+        audios.put("Kiu_beam", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice.wav")));
     }
 
     @Override
@@ -622,6 +632,11 @@ class Shunchan extends UECPlayerBase{
         switch (WinOrLoseOrDraw){
             case 0://Win
                 NowImageName = "Jump";
+                if(!did_PlayWin){
+                    NowRequestedPlayAudios.add("Kiu_win");
+                    did_PlayWin = true;
+                }
+
                 break;
             case 1://Lose
                 NowImageName = HPeqZero ? "Down" : "Damage";
@@ -914,6 +929,7 @@ class PlayerSelect extends JPanel {
     private Image img[], backImage, img_kiu, img_nao, img_1p, img_2p;
     private Font font, font_name; //fontをいじる際に使用
     private TreeMap<String, AudioClip> audios; //音声
+    private AudioClip bgm;
 
     public PlayerSelect(UECFighter uecFighter){
         this.uecFighter = uecFighter;
@@ -931,6 +947,10 @@ class PlayerSelect extends JPanel {
         p2_OK = KeyEvent.VK_COMMA; p2_cancel = KeyEvent.VK_PERIOD;
         this.setSize(UECFighter.SCREEN_WIDTH, UECFighter.SCREEN_HEIGHT);
         setOpaque(false); //背景を透明に(これをしないと背景に画像貼れない)
+
+        //bgm再生
+        bgm = java.applet.Applet.newAudioClip(getClass().getResource("resources/sentaku_bgm2.wav"));
+        bgm.loop();
 
         //データの登録
         backImage = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/china_back.jpg"));
@@ -995,6 +1015,7 @@ class PlayerSelect extends JPanel {
         }if(key == KeyEvent.VK_ENTER){
             if(p_selected[0] && p_selected[1]){
                 PlaySoundEffect("START");
+                bgm.stop(); bgm = null;
                 uecFighter.setPlayer(p_enabled[0], p_enabled[1]);
                 uecFighter.callScene(2);
             }
@@ -1143,6 +1164,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
     private MediaTracker tracker;
 
     private TreeMap<String, AudioClip> audios;
+    private AudioClip bgm;
 
     public UECFrameView(UECFighter uecFighter, int P1, int P2){
         this.setSize(UECFighter.SCREEN_WIDTH, UECFighter.HEIGHT);
@@ -1170,6 +1192,9 @@ class UECFrameView extends JPanel {//implements KeyListener{
         //攻撃情報管理クラス(AttackInfo)を準備する
         player1.setAttackInfo(player2);
         player2.setAttackInfo(player1);
+        //攻撃を扱う
+        p1AttackInfo = player1.getAttackInfo();
+        p2AttackInfo = player2.getAttackInfo();
         //p1here,p2here準備
         p1here = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/1P.png"));
         p2here = Toolkit.getDefaultToolkit().getImage(getClass().getResource("resources/2P.png"));
@@ -1179,6 +1204,9 @@ class UECFrameView extends JPanel {//implements KeyListener{
         //効果音登録
         audios = new TreeMap<String, AudioClip>();
         RegisterAudioClip();
+        //BGM再生
+        bgm = java.applet.Applet.newAudioClip(getClass().getResource("resources/fight_bgm.wav"));
+        bgm.loop();
 
         gameTime = new GameTime(120);
         font = new Font(Font.SANS_SERIF,Font.BOLD, 80);
@@ -1206,9 +1234,6 @@ class UECFrameView extends JPanel {//implements KeyListener{
                 p1position = player1.getPosition();
                 p2position = player2.getPosition();
 
-                //攻撃を扱う
-                p1AttackInfo = player1.getAttackInfo();
-                p2AttackInfo = player2.getAttackInfo();
                 boolean p2Hitted = false, p1Hitted = false;
                 int p1mode, p2mode;
                 //"AttackInfo.update()==1" means "Attacking".
@@ -1257,10 +1282,10 @@ class UECFrameView extends JPanel {//implements KeyListener{
 
         super.paint(g);
 
-        //当たり判定デバッグ用
+        /*当たり判定デバッグ用
         p1AttackInfo.print(g, p1position);
         p2AttackInfo.print(g, p2position);
-        //
+        */
 
         //fillRectでHPを表示してます。
         g.setColor(new Color(0, 200, 0));
@@ -1369,6 +1394,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
     private void RegisterAudioClip(){
         //共有効果音
         audios.put("Punch", java.applet.Applet.newAudioClip(getClass().getResource("resources/punch1.wav")));
+        audios.put("guard", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_guard.wav")));
         //キャラボイス
         player1.RegisterAudioClip(audios);
         player2.RegisterAudioClip(audios);
