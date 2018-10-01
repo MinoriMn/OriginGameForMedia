@@ -887,10 +887,8 @@ class StartFrameView extends JPanel implements ActionListener{
             InputStream is = getClass().getResourceAsStream(filename);
             font = Font.createFont(Font.TRUETYPE_FONT, is);
             font = font.deriveFont(50.0f);
-        } catch (IOException ioe) {
+        } catch (IOException | FontFormatException ioe) {
             ioe.printStackTrace();
-        }catch (FontFormatException ffe){
-            ffe.printStackTrace();
         }
     }
 
@@ -1062,6 +1060,7 @@ class PlayerSelect extends JPanel {
         //選択された後の描画
         g.drawImage(img[p_enabled[0]], 50, 60, 300, 300, this);
         g.drawImage(img[p_enabled[1]], 670, 60, -300, 300, this);
+
         if(p_selected[0]){
             g.setFont(font);
             g.setColor(Color.red);
@@ -1091,10 +1090,8 @@ class PlayerSelect extends JPanel {
             Font font = Font.createFont(Font.TRUETYPE_FONT, is);
             font = font.deriveFont(size);
             return font;
-        } catch (IOException ioe) {
+        } catch (IOException | FontFormatException ioe) {
             ioe.printStackTrace();
-        }catch (FontFormatException ffe){
-            ffe.printStackTrace();
         }
         return font;
     }
@@ -1386,6 +1383,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
             player1.keyPressed(e);
             player2.keyPressed(e);
         }
+
     }
 
     //@Override
@@ -1498,10 +1496,8 @@ class Option extends JPanel {
             Font font = Font.createFont(Font.TRUETYPE_FONT, is);
             font = font.deriveFont(size);
             return font;
-        } catch (IOException ioe) {
+        } catch (IOException | FontFormatException ioe) {
             ioe.printStackTrace();
-        }catch (FontFormatException ffe){
-            ffe.printStackTrace();
         }
         return font;
     }
@@ -1566,6 +1562,7 @@ public class UECFighter extends JFrame implements KeyListener{
         this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         this.setResizable(false);
         this.setVisible(true);
+
     }
 
     public void callScene(int scene){
@@ -1627,6 +1624,7 @@ public class UECFighter extends JFrame implements KeyListener{
 
     public void setPlayer(int P1, int P2){
         this.P1 = P1; this.P2 = P2;
+
     }
 
     public void setTime(int time) { this.time = time; }
@@ -1636,4 +1634,6 @@ public class UECFighter extends JFrame implements KeyListener{
     public static void main(String argv[]){
         new UECFighter();
     }
+
+
 }
