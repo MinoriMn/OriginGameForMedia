@@ -13,15 +13,15 @@ import java.util.List;
 
 abstract class UECPlayerBase  {
     private final int K_UP, K_DOWN, K_LEFT, K_RIGHT, K_WeakAttack, K_StrongAttack;//操作ボタンコード
-    protected boolean bK_UP = false, bK_DOWN = false, bK_LEFT = false, bK_RIGHT = false, bK_WeakAttack = false, bK_StrongAttack = false;//操作ボタンのフラグ
-    protected boolean is_Jump = false, is_HighJump = false, is_Dash = false, is_Squat = false, is_Down, did_PlayWin = false;//ジャンプ,二段ジャンプ中かダッシュ中かしゃがみ中かダウン中かどうか
+    protected boolean bkUp = false, bkDown = false, bkLeft = false, bkRight = false, bkWeakAttack = false, bkStrongAttack = false;//操作ボタンのフラグ
+    protected boolean isJump = false, isHighJump = false, isDash = false, isSquat = false, isDown, didPlayWin = false;//ジャンプ,二段ジャンプ中かダッシュ中かしゃがみ中かダウン中かどうか
     protected int walkCount;//歩いている時に足踏みを管理する
 
     protected boolean canAttack = true, canDown = false;//攻撃行動できるか,ダウンできるかどうか
     protected int canCombo = 0, attackId = -1;//コンボ技の入力受付時間を管理, 前回攻撃idを引き継ぐ(-1はダミーコード)
     protected AttackInfo attackInfo;//攻撃情報を収納する
 
-    protected boolean before_Right = false;//直前の左右入力を保存する
+    protected boolean beforeRight = false;//直前の左右入力を保存する
     protected boolean canBlock = false;//ガード受付状態の管理
     protected int HP;//キャラの体力
     protected Point2D.Float position; //キャラの座標
@@ -32,31 +32,41 @@ abstract class UECPlayerBase  {
     protected int underLine, rightLine;//ステージ下限右限
     protected int stun, canDash;//行動不自由時間, ダッシュ状態を受け付けている時間
     protected Looking look; //右を向いているか
-    protected UECPlayerBase OpponentPlayer;//対戦相手
+    protected UECPlayerBase opponentPlayer;//対戦相手
 
-    protected TreeMap<String, Image> Images;//グラフィック管理
-    protected String NowImageName;//呼び出す画像の名前
-    protected List<String> NowRequestedPlayAudios;//リクエストする名前
+    protected TreeMap<String, Image> images;//グラフィック管理
+    protected String nowImageName;//呼び出す画像の名前
+    protected List<String> nowRequestedPlayAudios;//リクエストする名前
 
-    protected boolean Debugmessage = false;
+    protected boolean debugMessage = false;
 
-    public UECPlayerBase(int K_UP, int K_DOWN, int K_LEFT, int K_RIGHT, int K_WeakAttack, int K_StrongAttack, float positionX, float magnification, Point size, Point range, Point startRange, boolean is_Right){
+    public UECPlayerBase(boolean isP1) {
         //操作ボタンコード
-        this.K_UP = K_UP;
-        this.K_DOWN = K_DOWN;
-        this.K_LEFT = K_LEFT;
-        this.K_RIGHT = K_RIGHT;
-        this.K_WeakAttack = K_WeakAttack;
-        this.K_StrongAttack = K_StrongAttack;
-
-        if(is_Right){
-            look = Looking.Right;
-        }else{
-            look = Looking.Left;
+        if (isP1) {
+            this.K_UP = KeyEvent.VK_W;
+            this.K_DOWN = KeyEvent.VK_S;
+            this.K_LEFT = KeyEvent.VK_A;
+            this.K_RIGHT = KeyEvent.VK_D;
+            this.K_WeakAttack = KeyEvent.VK_C;
+            this.K_StrongAttack = KeyEvent.VK_V;
+        } else {
+            this.K_UP = KeyEvent.VK_I;
+            this.K_DOWN = KeyEvent.VK_K;
+            this.K_LEFT = KeyEvent.VK_J;
+            this.K_RIGHT = KeyEvent.VK_L;
+            this.K_WeakAttack = KeyEvent.VK_COMMA;
+            this.K_StrongAttack = KeyEvent.VK_PERIOD;
         }
 
-        this.magnification = magnification;
+        //画像設定
+        images = new TreeMap();
+        registerImage();
 
+        //音声設定
+        nowRequestedPlayAudios = new ArrayList();
+    }
+
+    protected void setPositionSetting(float positionX, Point size, Point range, Point startRange) {
         underLine = UECFighter.SCREEN_HEIGHT * 9 / 10 - size.y;
         rightLine = UECFighter.SCREEN_WIDTH - size.x;
 
@@ -65,253 +75,301 @@ abstract class UECPlayerBase  {
         this.size = size;
         this.range = range;
         this.startRange = startRange;
-
-        //画像設定
-        Images = new TreeMap<String, Image>();
-        RegisterImage();
-
-        //音声設定
-        NowRequestedPlayAudios = new ArrayList<String>();
     }
 
     public void keyPressed(KeyEvent e) {
-        if(stun > 0){return;}
+        if(stun > 0) {
+            return;
+        }
+
         int keyCode = e.getKeyCode();
-        if(keyCode == K_UP && !bK_UP){
-            if(bK_UP = !bK_DOWN && !attackInfo.isHaving()){
-                Jump(true);
+
+        if(keyCode == K_UP && !bkUp) {
+            if(bkUp = !bkDown && !attackInfo.isHaving()) {
+                jump();
                 canBlock = false;
             }
             dx = 0;
-        } else
-        if(keyCode == K_DOWN && !bK_DOWN){ if(bK_DOWN = !bK_UP){ Squat(true); } } else
-        if(keyCode == K_RIGHT && !bK_RIGHT){
-            if(bK_RIGHT = !bK_LEFT && !attackInfo.isHaving()){
-                Move(true, true);
+        } else if(keyCode == K_DOWN && !bkDown) {
+            if(bkDown = !bkUp) {
+                squat(true);
+            }
+        } else if(keyCode == K_RIGHT && !bkRight) {
+            if(bkRight = !bkLeft && !attackInfo.isHaving()) {
+                move(true, true);
                 canBlock = look == Looking.Left;
             }
-        } else
-        if(keyCode == K_LEFT && !bK_LEFT){
-            if(bK_LEFT = !bK_RIGHT && !attackInfo.isHaving()){
-                Move(false, true);
+        } else if(keyCode == K_LEFT && !bkLeft) {
+            if(bkLeft = !bkRight && !attackInfo.isHaving()) {
+                move(false, true);
                 canBlock = look == Looking.Right;
             }
-        } else
-        if(keyCode == K_WeakAttack && !bK_WeakAttack){
-            bK_WeakAttack = true;
-            WeakAttack(true);
-        } else if(keyCode == K_StrongAttack && !bK_StrongAttack){
-            bK_StrongAttack = true;
-            StrongAttack(true);
+        } else if(keyCode == K_WeakAttack && !bkWeakAttack) {
+            bkWeakAttack = true;
+            weakAttack();
+        } else if(keyCode == K_StrongAttack && !bkStrongAttack) {
+            bkStrongAttack = true;
+            strongAttack();
         }
     }
 
     public void keyReleased(KeyEvent e) {
         int keyCode = e.getKeyCode();
-        if(keyCode == K_UP){ bK_UP = false; } else
-        if(keyCode == K_DOWN){ bK_DOWN = false; dx /= 2f;} else
-        if(keyCode == K_RIGHT){ bK_RIGHT = false; if(look == Looking.Left){canBlock = false;}} else
-        if(keyCode == K_LEFT){ bK_LEFT = false; if(look == Looking.Right){canBlock = false;}} else
-        if(keyCode == K_WeakAttack){ bK_WeakAttack = false; } else
-        if(keyCode == K_StrongAttack){ bK_StrongAttack = false; }
+        if(keyCode == K_UP) {
+            bkUp = false;
+        } else if(keyCode == K_DOWN) {
+            bkDown = false;
+            dx /= 2f;
+        } else if(keyCode == K_RIGHT) {
+            bkRight = false;
+            if(look == Looking.Left) {
+                canBlock = false;
+            }
+        } else if(keyCode == K_LEFT) {
+            bkLeft = false;
+            if(look == Looking.Right) {
+                canBlock = false;
+            }
+        } else if(keyCode == K_WeakAttack) {
+            bkWeakAttack = false;
+        } else if(keyCode == K_StrongAttack) {
+            bkStrongAttack = false;
+        }
     }
 
     //ジャンプモーション
-    protected void Jump(boolean Pressed){
-        if(Pressed && (!is_Jump || !is_HighJump)){
-            if(!is_Jump){
-                is_Jump = true;
-                NowImageName = "Jump";
-            }else{
-                is_HighJump = true;
-            }
-            dy = -30.0f;
+    protected void jump() {
+        if (isJump && isHighJump) {
+            return;
         }
+
+        if(!isJump) {
+            isJump = true;
+            nowImageName = "Jump";
+        } else {
+            isHighJump = true;
+        }
+        dy = -30.0f;
     }
     //しゃがみモーション
-    protected void Squat(boolean Pressed){
-        if (Pressed){
-            if(is_Jump){dx *= 0.5f;}
-            is_Dash = false;
+    protected void squat(boolean pressed) {
+        if (pressed) {
+            if(isJump) {
+                dx *= 0.5f;
+            }
+            isDash = false;
+        } else if((isSquat = !isJump) && dx != 0.0f) {
+            dx *= 0.3f;
         }
-        else if((is_Squat = !is_Jump) && dx != 0.0f){dx *= 0.3f;}
     }
     //弱攻撃
-    abstract protected void WeakAttack(boolean Pressed);
-    //強攻撃
-    abstract protected void StrongAttack(boolean Pressed);
-    //移動
-    protected void Move(boolean is_Right, boolean Pressed){
+    private void weakAttack() {
+        if (!canAttack) {
+            return;
+        }
 
+        if(!isJump) {
+            //地上技
+            weakGroundAttack();
+        } else {
+            //空中技
+            weakAerialAttack();
+        }
     }
+    abstract protected void weakGroundAttack();
+    abstract protected void weakAerialAttack();
+    //強攻撃
+    private void strongAttack() {
+        if (!canAttack) {
+            return;
+        }
+
+        if(!isJump) {
+            //地上技
+            strongGroundAttack();
+        } else {
+            //空中技
+            strongAerialAttack();
+        }
+    }
+    abstract protected void strongGroundAttack();
+    abstract protected void strongAerialAttack();
+    //移動
+    protected void move(boolean isRight, boolean pressed) {}
     //一連の行動を管理する
-    public void Action(){
+    public void action() {
+        if(canAttack && stun < 0 && !attackInfo.isHaving()) {
+            if (attackId != -1 && canCombo-- <= 0) {
+                attackId = -1;
+            }
 
-        if(canAttack && stun < 0){
-            if(!attackInfo.isHaving()) {
-
-                if (attackId != -1 && canCombo-- <= 0) {
-                    attackId = -1;
-                }
-                //弱アタック・強アタック
-                if (bK_WeakAttack) {
-                    WeakAttack(false);
-                } else if (bK_StrongAttack) {
-                    StrongAttack(false);
-                }
-                //左右入力
-                if (bK_LEFT || bK_RIGHT) {
-                    Move(bK_RIGHT, false);
-                } else {
-                    canDash--;
-                    if (is_Dash) {
-                        is_Dash = false;
+            //左右入力
+            if (bkLeft || bkRight) {
+                move(bkRight, false);
+            } else {
+                canDash--;
+                isDash = false;
+                if (!isJump) {
+                    dx = 0;
+                    if(!isDown) {
+                        nowImageName = "Stand";
                     }
-                    if (!is_Jump) {
-                        dx = 0;
-                        if(!is_Down) {
-                            NowImageName = "Stand";
-                    }
-                }
-                }
-
-                if (bK_UP) {
-                    Jump(false);
-                } else if (bK_DOWN) {
-                    Squat(false);
                 }
             }
 
-        }else{
-
+            if (bkDown) {
+                squat(false);
+            }
+        } else {
             canDown = stun-- != 0 && canDown;
         }
 
         //横方向移動
+        lateralMove();
+
+        //落下処理
+        if (isJump) {
+            fall();
+        }
+    }
+
+    // 横方向移動
+    private void lateralMove() {
         position.x += dx;
-        if(position.x<0){
+        if(position.x < 0) {
             dx = 0;
             position.x = 0;
-        }else if(position.x>rightLine){
+        } else if(position.x > rightLine) {
             dx = 0;
             position.x = rightLine;
         }
+    }
 
-        //落下処理
-        if(is_Jump) {
-            canBlock = false;
-            position.y += dy;
-            dy += 2.0f;
-            if (position.y >= underLine) {
-                if(canDown && NowImageName.equals("Damage")){
-                    NowImageName = "Down";
-                }
-                is_Jump = false;
-                is_HighJump = false;
-                position.y = underLine;
-                dx = 0;
-                //ここで反転処理を行う
-                canBlock = (look == Looking.Left && bK_RIGHT) || (look == Looking.Right && bK_LEFT);
+    //落下処理
+    private void fall() {
+        canBlock = false;
+        position.y += dy;
+        dy += 2.0f;
+        if (position.y >= underLine) {
+            if(canDown && nowImageName.equals("Damage")) {
+                nowImageName = "Down";
             }
+            isJump = false;
+            isHighJump = false;
+            position.y = underLine;
+            dx = 0;
+            //ここで反転処理を行う
+            canBlock = (look == Looking.Left && bkRight) || (look == Looking.Right && bkLeft);
         }
     }
 
-    abstract public void RegisterImage();
-    abstract public void RegisterAudioClip(TreeMap<String, AudioClip> audios);
+    abstract public void registerImage();
+    abstract public void registerAudioClip(TreeMap<String, AudioClip> audios);
 
-    public Image getNowImage(){ return Images.get(NowImageName); }
-    public void setNowImageName(String nowImageName){ NowImageName = nowImageName; }
-    public List<String> getNowRequestedPlayAudio(){
-        return NowRequestedPlayAudios;
+    public Image getNowImage() { return images.get(nowImageName); }
+    public void setNowImageName(String nowImageName) { this.nowImageName = nowImageName; }
+    public List<String> getNowRequestedPlayAudio() {
+        return nowRequestedPlayAudios;
     }
 
-    public Point2D.Float getPosition(){ return position; }
+    public Point2D.Float getPosition() { return position; }
 
     //ダメージ情報を扱う
-    public boolean ConfirmDamage(Point2D.Float Force, int Stun, int damage, boolean canDown){
-        if(canBlock){
+    public boolean confirmDamage(Point2D.Float Force, int stun, int damage, boolean canDown) {
+        if(canBlock) {
             //ブロック出来る時
-            NowRequestedPlayAudios.add("guard");
-            NowImageName = "Guard";
+            nowRequestedPlayAudios.add("guard");
+            nowImageName = "Guard";
 
-            HP -= damage/5;
+            HP -= damage / 5;
             stun = 8;
             dx = 0;
-        }else{
+        } else {
             //出来ない時
-            NowRequestedPlayAudios.add("Punch");
-            NowImageName = "Damage";
+            nowRequestedPlayAudios.add("Punch");
+            nowImageName = "Damage";
             this.canDown = canDown;
             HP -= damage;
-            stun = Stun;
+            this.stun = stun;
             canCombo = 0;
             attackId = -1;
             dx = Force.x;
             dy = Force.y;
-            is_Jump |= dy < 0f;//is_Jumpがfalseの時上方向加力するならtrueに
+            isJump |= dy < 0f;//is_Jumpがfalseの時上方向加力するならtrueに
             canAttack = true;
         }
         canCombo = 0; attackId = -1;
-        return HP>0;
+        return HP > 0;
     }
 
-    public Point getMySize(){return size;}
-    public Point getRange(){ return  range;}
-    public Point getStartRange(){return startRange;}
+    public Point getMySize() { return size; }
+    public Point getRange() { return  range;}
+    public Point getStartRange() {return startRange;}
 
     //向き情報を設定し返す
-    public Looking setgetLook(Point2D.Float OpponentPos){
-       if (!is_Jump){
-           if(position.x <= OpponentPos.x){
-               canBlock = bK_LEFT;
-               return look = Looking.Right;
-           }else{
-               canBlock = bK_RIGHT;
-               return look = Looking.Left;
-           }
-       }
-       return look;
+    public void updateLook(Point2D.Float OpponentPos) {
+        if (!isJump) {
+            if(position.x <= OpponentPos.x) {
+                canBlock = bkLeft;
+                look = Looking.Right;
+            } else {
+                canBlock = bkRight;
+                look = Looking.Left;
+            }
+        }
     }
-    public Looking getLook(){ return look; }
 
-    public int getHP(){ return HP; }
-    public void setHP(int HP){ this.HP = HP; }
+    public Looking getLook() { return look; }
 
-    public void setOpponentPlayer(UECPlayerBase opponentPlayer) { OpponentPlayer = opponentPlayer; }
+    public int getHP() { return HP; }
 
-    public AttackInfo getAttackInfo(){ return attackInfo; }
-    public void setAttackInfo(UECPlayerBase Opponent){ attackInfo = new AttackInfo(this, Opponent, magnification); }
-    public void setCanAttack(boolean canAttack){ this.canAttack = canAttack; }
+    public void setOpponentPlayer(UECPlayerBase opponentPlayer) { this.opponentPlayer = opponentPlayer; }
 
-    public boolean getCanDown(){ return  canDown; }
+    public AttackInfo getAttackInfo() { return attackInfo; }
+    public void setAttackInfo(UECPlayerBase opponent) { attackInfo = new AttackInfo(this, opponent, magnification); }
+    public void setCanAttack(boolean canAttack) { this.canAttack = canAttack; }
 
-    abstract public void GameFinished(int WinOrLoseOrDraw, boolean HPeqZero);
+    public boolean getCanDown() { return  canDown; }
+
+    abstract public void gameFinished(int winOrLoseOrDraw, boolean HPeqZero);
 
     //デバッグ
-    public void setDebugmessage(boolean debugmessage){Debugmessage = debugmessage;}
+    public void setDebugMessage(boolean debugMessage) {
+        this.debugMessage = debugMessage;
+    }
 
 }
 
 //操作キャラA
 class NaoChan extends UECPlayerBase{
 
-    public NaoChan(int K_UP, int K_DOWN, int K_LEFT, int K_RIGHT, int K_WeakAttack, int K_StrongAttack, float positionX, float positionY, float magnification, Point size, Point range, Point startRange, boolean is_Right){
-        super(K_UP, K_DOWN, K_LEFT, K_RIGHT, K_WeakAttack, K_StrongAttack, positionX, magnification, size, range, startRange, is_Right);
+    public NaoChan(boolean isP1) {
+        super(isP1);
+
         HP = 100;//体力セット
+
+        this.magnification = 2f;
+
+        Point size = new Point((int) (120 * magnification), (int) (120 * magnification));
+        Point range = new Point((int) (30 * magnification), (int) (70 * magnification));
+        Point startRange = new Point((int) (45 * magnification), (int) (50 * magnification));
+        float positionX = isP1 ? 0 : UECFighter.SCREEN_WIDTH - size.x;
+
+        setPositionSetting(positionX, size, range, startRange);
     }
 
     @Override
-    protected void Jump(boolean Pressed) {
-        super.Jump(Pressed);
-            }
+    protected void jump() {
+        super.jump();
+    }
 
     @Override
-    protected void Squat(boolean Pressed) {
-        super.Squat(Pressed);
-        }
+    protected void squat(boolean pressed) {
+        super.squat(pressed);
+    }
 
     @Override
-    protected void WeakAttack(boolean Pressed) {
+    protected void weakGroundAttack() {
         /*
         attackInfo.setInfo(
         攻撃範囲の始点[右向き基準],
@@ -325,132 +383,133 @@ class NaoChan extends UECPlayerBase{
         int stun… 攻撃を受けてひるむ時間,
         int id… 攻撃のid)
          */
-        if(canAttack) {
-            if (Pressed) {
-                if(!is_Jump) {
-                    //地上技
-                    dx = 0f;
-                    switch (attackId) {
-                        default:
-                            NowImageName = "Punch1";
-                            NowRequestedPlayAudios.add("Nao_punch1");
-                            attackInfo.setInfo(new Point(80, 30), new Point(30, 20), 0, 5, 0, 9999, 10, new Point2D.Float(3f, -5f), 5, 1, false);
-                            attackId = 1;
-                            canCombo = 7;
-                            canAttack = false;
-                            break;
-                        case 1:
-                            NowImageName = "Punch2";
-                            NowRequestedPlayAudios.add("Nao_punch2");
-                            attackInfo.setInfo(new Point(80, 0), new Point(20, 30), 0, 5, 0, 9999, 10, new Point2D.Float(3f, -10f), 5, 2, false);
-                            attackId = 2;
-                            canCombo = 7;
-                            canAttack = false;
-                            break;
-                        case 2:
-                            NowImageName = "Kick3";
-                            NowRequestedPlayAudios.add("Nao_kick3");
-                            attackInfo.setInfo(new Point(70, 30), new Point(50, 30), 0, 20, 10, 9999, 10, new Point2D.Float(30f, -20f), 40, -1 ,true);
-                            attackId = -1;
-                            canCombo = 0;
-                            canAttack = false;
-                            break;
-                    }
-                }else{
-                    //空中技
-                    switch (attackId) {
-                        default:
-                            NowImageName = "FlyingKick";
-                            NowRequestedPlayAudios.add("Nao_kick3");
-                            attackInfo.setInfo(new Point(80, 0), new Point(20, 30), 0, 10, 10, 9999, 5, new Point2D.Float(20f, 0f), 2, 2, false);
-                            attackId = -1;
-                            canCombo = 0;
-                            break;
-
-
-                    }
-                }
-
-            }
+        //地上技
+        dx = 0f;
+        switch (attackId) {
+            default:
+                nowImageName = "Punch1";
+                nowRequestedPlayAudios.add("Nao_punch1");
+                attackInfo.setInfo(new Point(80, 30), new Point(30, 20), 0, 5, 0, 9999, 10, new Point2D.Float(3f, -5f), 5, 1, false);
+                attackId = 1;
+                canCombo = 7;
+                canAttack = false;
+                break;
+            case 1:
+                nowImageName = "Punch2";
+                nowRequestedPlayAudios.add("Nao_punch2");
+                attackInfo.setInfo(new Point(80, 0), new Point(20, 30), 0, 5, 0, 9999, 10, new Point2D.Float(3f, -10f), 5, 2, false);
+                attackId = 2;
+                canCombo = 7;
+                canAttack = false;
+                break;
+            case 2:
+                nowImageName = "Kick3";
+                nowRequestedPlayAudios.add("Nao_kick3");
+                attackInfo.setInfo(new Point(70, 30), new Point(50, 30), 0, 20, 10, 9999, 10, new Point2D.Float(30f, -20f), 40, -1, true);
+                attackId = -1;
+                canCombo = 0;
+                canAttack = false;
+                break;
         }
     }
 
     @Override
-    protected void StrongAttack(boolean Pressed) {
-        if(canAttack) {
-            if (Pressed) {
-                switch (attackId) {
-                    default:
-                        NowImageName = "Guard";
-                        attackInfo.setInfo(new Point(0, 0), new Point(0, 0), 10, 0, 0, 9999,0, new Point2D.Float(0f,0f), 0, 11, false);
-                        attackId = 11;
-                        canCombo = 20;
-                        canAttack = false;
-                        break;
-                    case 11:
-                        NowImageName = "StrongPunch";
-                        attackInfo.setInfo(new Point(70, 50), new Point(50, 20), 0, 15, 15, 5, 8, new Point2D.Float(25f, -10f), 20, -1 ,false);
-                        attackId = -1;
-                        canCombo = 0;
-                        canAttack = false;
-                        break;
-                }
-            }
+    protected void weakAerialAttack() {
+        //空中技
+        switch (attackId) {
+            default:
+                nowImageName = "FlyingKick";
+                nowRequestedPlayAudios.add("Nao_kick3");
+                attackInfo.setInfo(new Point(80, 0), new Point(20, 30), 0, 10, 10, 9999, 5, new Point2D.Float(20f, 0f), 2, 2, false);
+                attackId = -1;
+                canCombo = 0;
+                break;
         }
     }
 
     @Override
-    protected void Move(boolean is_Right ,boolean Pressed) {
-        if(stun > 0){ return;}
-        if(before_Right != is_Right){
+    protected void strongGroundAttack() {
+        if (!canAttack) {
+            return;
+        }
+        
+
+        switch (attackId) {
+            default:
+                nowImageName = "Guard";
+                attackInfo.setInfo(new Point(0, 0), new Point(0, 0), 10, 0, 0, 9999,0, new Point2D.Float(0f,0f), 0, 11, false);
+                attackId = 11;
+                canCombo = 20;
+                canAttack = false;
+                break;
+            case 11:
+                nowImageName = "StrongPunch";
+                attackInfo.setInfo(new Point(70, 50), new Point(50, 20), 0, 15, 15, 5, 8, new Point2D.Float(25f, -10f), 20, -1 ,false);
+                attackId = -1;
+                canCombo = 0;
+                canAttack = false;
+                break;
+        }
+    }
+    @Override
+    protected void strongAerialAttack() {}
+
+    @Override
+    protected void move(boolean isRight , boolean pressed) {
+        if(stun > 0) { return; }
+        if(beforeRight != isRight) {
             canDash = 0;
         }
-        if(!is_Dash){
+        if(!isDash) {
             boolean goAhead;
-            dx = ((goAhead = is_Right ^ look!=Looking.Right) ? 7f : 4.5f) * (is_Right ? 1f : -1f);
+            dx = ((goAhead = isRight ^ look != Looking.Right) ? 7f : 4.5f) * (isRight ? 1f : -1f);
             System.out.println(walkCount);
-            if (!is_Jump) {
-            NowImageName = (walkCount = ((walkCount + 1) % 20)) / 10 == 0 ? "Stand" : "Walk";
-            }
+            if (!isJump) {
+                walkCount = ((walkCount + 1) % 20);
+                nowImageName = (walkCount) / 10 == 0 ? "Stand" : "Walk";
 
-            if(goAhead && Pressed && !is_Jump && !bK_DOWN){
-                if(canDash > 0){is_Dash = true; NowImageName = "Run";}
-                canDash = 7;
+                if(goAhead && pressed && !bkDown) {
+                    if(canDash > 0) {
+                        isDash = true;
+                        nowImageName = "Run";
+                    }
+                    canDash = 7;
+                }
             }
-        }else{
-            dx = is_Right ? 20f : -20f;
+        } else {
+            dx = isRight ? 20f : -20f;
         }
 
-        before_Right = is_Right;
+        beforeRight = isRight;
     }
 
     @Override
-    public void Action() {
-        super.Action();
+    public void action() {
+        super.action();
     }
 
     //最初に画像登録を行う
     @Override
-    public void RegisterImage() {
-        NowImageName = "Stand";
+    public void registerImage() {
+        nowImageName = "Stand";
         Toolkit toolkit = Toolkit.getDefaultToolkit();
-        Images.put("Stand", toolkit.getImage(getClass().getResource("resources/Nao_stand.png")));
-        Images.put("Punch1", toolkit.getImage(getClass().getResource("resources/Nao_punch1.png")));
-        Images.put("Punch2", toolkit.getImage(getClass().getResource("resources/Nao_punch2.png")));
-        Images.put("Kick3", toolkit.getImage(getClass().getResource("resources/Nao_Kick3.png")));
-        Images.put("Run", toolkit.getImage(getClass().getResource("resources/Nao_FastMove.png")));
-        Images.put("Walk", toolkit.getImage(getClass().getResource("resources/Nao_walk.png")));
-        Images.put("Guard", toolkit.getImage(getClass().getResource("resources/Nao_guard.png")));
-        Images.put("Damage", toolkit.getImage(getClass().getResource("resources/Nao_ukete1.png")));
-        Images.put("Down", toolkit.getImage(getClass().getResource("resources/Nao_down.png")));
-        Images.put("Jump", toolkit.getImage(getClass().getResource("resources/Nao_jump.png")));
-        Images.put("Win", toolkit.getImage(getClass().getResource("resources/Nao_win.png")));
-        Images.put("FlyingKick", toolkit.getImage(getClass().getResource("resources/Nao_flyingattack.png")));
-        Images.put("StrongPunch", toolkit.getImage(getClass().getResource("resources/Nao_strong.png")));
+        images.put("Stand", toolkit.getImage(getClass().getResource("resources/Nao_stand.png")));
+        images.put("Punch1", toolkit.getImage(getClass().getResource("resources/Nao_punch1.png")));
+        images.put("Punch2", toolkit.getImage(getClass().getResource("resources/Nao_punch2.png")));
+        images.put("Kick3", toolkit.getImage(getClass().getResource("resources/Nao_Kick3.png")));
+        images.put("Run", toolkit.getImage(getClass().getResource("resources/Nao_FastMove.png")));
+        images.put("Walk", toolkit.getImage(getClass().getResource("resources/Nao_walk.png")));
+        images.put("Guard", toolkit.getImage(getClass().getResource("resources/Nao_guard.png")));
+        images.put("Damage", toolkit.getImage(getClass().getResource("resources/Nao_ukete1.png")));
+        images.put("Down", toolkit.getImage(getClass().getResource("resources/Nao_down.png")));
+        images.put("Jump", toolkit.getImage(getClass().getResource("resources/Nao_jump.png")));
+        images.put("Win", toolkit.getImage(getClass().getResource("resources/Nao_win.png")));
+        images.put("FlyingKick", toolkit.getImage(getClass().getResource("resources/Nao_flyingattack.png")));
+        images.put("StrongPunch", toolkit.getImage(getClass().getResource("resources/Nao_strong.png")));
     }
 
     @Override
-    public void RegisterAudioClip(TreeMap<String, AudioClip> audios) {
+    public void registerAudioClip(TreeMap<String, AudioClip> audios) {
         audios.put("Nao_punch1", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice1.wav")));
         audios.put("Nao_punch2", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice2.wav")));
         audios.put("Nao_kick3", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_voice3.wav")));
@@ -458,23 +517,22 @@ class NaoChan extends UECPlayerBase{
     }
 
     @Override
-    public void GameFinished(int WinOrLoseOrDraw, boolean HPeqZero) {
-        switch (WinOrLoseOrDraw){
+    public void gameFinished(int winOrLoseOrDraw, boolean HPeqZero) {
+        switch (winOrLoseOrDraw) {
             case 0://Win
-                NowImageName = "Win";
-                if(!did_PlayWin){
-                    NowRequestedPlayAudios.add("Nao_win");
-                    did_PlayWin = true;
+                nowImageName = "Win";
+                if(!didPlayWin) {
+                    nowRequestedPlayAudios.add("Nao_win");
+                    didPlayWin = true;
                 }
                 break;
             case 1://Lose
 
-                NowImageName = HPeqZero ? "Down" : "Damage";
+                nowImageName = HPeqZero ? "Down" : "Damage";
                 break;
             case 2://Draw
-                NowImageName = "FlyingKick";
+                nowImageName = "FlyingKick";
                 break;
-
         }
     }
 
@@ -482,31 +540,42 @@ class NaoChan extends UECPlayerBase{
 
 //操作キャラ
 class Shunchan extends UECPlayerBase{
+    public Shunchan(boolean isP1) {
+        super(isP1);
 
-    public Shunchan(int K_UP, int K_DOWN, int K_LEFT, int K_RIGHT, int K_WeakAttack, int K_StrongAttack, float positionX, float positionY, float magnification, Point size, Point range, Point startRange, boolean is_Right){
-        super(K_UP, K_DOWN, K_LEFT, K_RIGHT, K_WeakAttack, K_StrongAttack, positionX, magnification, size, range, startRange, is_Right);
         HP = 120;//体力セット
+
+        this.magnification = 2.2f;
+
+        Point size = new Point((int) (120 * magnification), (int) (120 * magnification));
+        Point range = new Point((int) (30 * magnification), (int) (70 * magnification));
+        Point startRange = new Point((int) (45 * magnification), (int) (50 * magnification));
+        float positionX = isP1 ? 0 : UECFighter.SCREEN_WIDTH - size.x;
+
+        setPositionSetting(positionX, size, range, startRange);
     }
 
     @Override
-    protected void Jump(boolean Pressed) {
-        super.Jump(Pressed);
+    protected void jump() {
+        super.jump();
     }
 
     @Override
-    protected void Squat(boolean Pressed) {
-        super.Squat(Pressed);
+    protected void squat(boolean pressed) {
+        super.squat(pressed);
     }
 
     @Override
-    public boolean ConfirmDamage(Point2D.Float Force, int Stun, int damage, boolean canDown){
-        if(!canBlock){NowRequestedPlayAudios.add("Kiu_damage");}
-        return super.ConfirmDamage(Force, Stun, damage, canDown);
+    public boolean confirmDamage(Point2D.Float Force, int Stun, int damage, boolean canDown) {
+        if(!canBlock) {
+            nowRequestedPlayAudios.add("Kiu_damage");
+        }
+        return super.confirmDamage(Force, Stun, damage, canDown);
     }
 
 
     @Override
-    protected void WeakAttack(boolean Pressed) {
+    protected void weakGroundAttack() {
         /*
         attackInfo.setInfo(
         攻撃範囲の始点[右向き基準],
@@ -520,105 +589,106 @@ class Shunchan extends UECPlayerBase{
         int stun… 攻撃を受けてひるむ時間,
         int id… 攻撃のid)
          */
-        if(canAttack) {
-            if (Pressed) {
-                if(!is_Jump) {
-                    //地上技
-                    dx = 0f;
-                    switch (attackId) {
-                        default:
-                            NowImageName = "Punch1";
-                            NowRequestedPlayAudios.add("Kiu_attack1");
-                            attackInfo.setInfo(new Point(80, 40), new Point(20, 20), 0, 5, 10, 9999, 5, new Point2D.Float(3f, 0f), 2, 1, false);
-                            attackId = 1;
-                            canCombo = 7;
-                            canAttack = false;
-                            break;
-                        case 1:
-                            NowImageName = "Kick3";
-                            NowRequestedPlayAudios.add("Kiu_attack3");
-                            NowRequestedPlayAudios.add("Kiu_beam");
-                            attackInfo.setInfo(new Point(100, 40), new Point(50, 10), 0, 20, 30, 2, 4, new Point2D.Float(10f, -10f), 10, -1, false);
-                            attackId = -1;
-                            canCombo = 0;
-                            canAttack = false;
-                            break;
-                    }
-                }else{
-                    //空中技
-                    switch (attackId) {
-                        default:
-                            NowImageName = "Punch2";
-                            NowRequestedPlayAudios.add("Kiu_attack2");
-                            attackInfo.setInfo(new Point(80, 0), new Point(20, 30), 5, 10, 5, 9999, 10, new Point2D.Float(20f, -2f), 5, 2, false);
-                            attackId = -1;
-                            canCombo = 0;
-                            canAttack = false;
-                            break;
-                    }
-                }
-            }
+        //地上技
+        dx = 0f;
+        switch (attackId) {
+            default:
+                nowImageName = "Punch1";
+                nowRequestedPlayAudios.add("Kiu_attack1");
+                attackInfo.setInfo(new Point(80, 40), new Point(20, 20), 0, 5, 10, 9999, 5, new Point2D.Float(3f, 0f), 2, 1, false);
+                attackId = 1;
+                canCombo = 7;
+                canAttack = false;
+                break;
+            case 1:
+                nowImageName = "Kick3";
+                nowRequestedPlayAudios.add("Kiu_attack3");
+                nowRequestedPlayAudios.add("Kiu_beam");
+                attackInfo.setInfo(new Point(100, 40), new Point(50, 10), 0, 20, 30, 2, 4, new Point2D.Float(10f, -10f), 10, -1, false);
+                attackId = -1;
+                canCombo = 0;
+                canAttack = false;
+                break;
         }
     }
 
     @Override
-    protected void StrongAttack(boolean Pressed) {
-        if(canAttack) {
-            if (Pressed) {
-
-            }
+    protected void weakAerialAttack() {
+        //空中技
+        switch (attackId) {
+            default:
+                nowImageName = "Punch2";
+                nowRequestedPlayAudios.add("Kiu_attack2");
+                attackInfo.setInfo(new Point(80, 0), new Point(20, 30), 5, 10, 5, 9999, 10, new Point2D.Float(20f, -2f), 5, 2, false);
+                attackId = -1;
+                canCombo = 0;
+                canAttack = false;
+                break;
         }
     }
 
     @Override
-    protected void Move(boolean is_Right ,boolean Pressed) {
-        if(stun > 0){ return;}
-        if(before_Right != is_Right){
+    protected void strongGroundAttack() {
+        if (!canAttack) {
+            return;
+        }
+    }
+
+    @Override
+    protected void strongAerialAttack() {}
+
+    @Override
+    protected void move(boolean isRight , boolean pressed) {
+        if(stun > 0) { return;}
+        if(beforeRight != isRight) {
             canDash = 0;
         }
-        if(!is_Dash){
+        if(!isDash) {
             boolean goAhead;
-            dx = ((goAhead = is_Right ^ look!=Looking.Right) ? 5f : 3.5f) * (is_Right ? 1f : -1f);
+            dx = ((goAhead = isRight ^ look!=Looking.Right) ? 5f : 3.5f) * (isRight ? 1f : -1f);
             System.out.println(walkCount);
-            if (!is_Jump) {
-                NowImageName = (walkCount = ((walkCount + 1) % 20)) / 10 == 0 ? "Stand" : "Walk";
+            if (!isJump) {
+                nowImageName = (walkCount = ((walkCount + 1) % 20)) / 10 == 0 ? "Stand" : "Walk";
             }
 
-            if(goAhead && Pressed && !is_Jump && !bK_DOWN){
-                if(canDash > 0){is_Dash = true; NowImageName = "Run";}
+            if(goAhead && pressed && !isJump && !bkDown) {
+                if(canDash > 0) {
+                    isDash = true;
+                    nowImageName = "Run";
+                }
                 canDash = 7;
             }
-        }else{
-            dx = is_Right ? 25f : -25f;
+        } else {
+            dx = isRight ? 25f : -25f;
         }
 
-        before_Right = is_Right;
+        beforeRight = isRight;
     }
 
     @Override
-    public void Action() {
-        super.Action();
+    public void action() {
+        super.action();
     }
 
     //最初に画像登録を行う
     @Override
-    public void RegisterImage() {
-        NowImageName = "Stand";
+    public void registerImage() {
+        nowImageName = "Stand";
         Toolkit toolkit = Toolkit.getDefaultToolkit();
-        Images.put("Stand", toolkit.getImage(getClass().getResource("resources/Kiu_stand.png")));
-        Images.put("Punch1", toolkit.getImage(getClass().getResource("resources/Kiu_attack1.png")));
-        Images.put("Punch2", toolkit.getImage(getClass().getResource("resources/Kiu_attack2.png")));
-        Images.put("Kick3", toolkit.getImage(getClass().getResource("resources/Kiu_attack3.png")));
-        Images.put("Run", toolkit.getImage(getClass().getResource("resources/Kiu_FastMove.png")));
-        Images.put("Walk", toolkit.getImage(getClass().getResource("resources/Kiu_walk.png")));
-        Images.put("Guard", toolkit.getImage(getClass().getResource("resources/Kiu_guard.png")));
-        Images.put("Damage", toolkit.getImage(getClass().getResource("resources/Kiu_ukemi.png")));
-        Images.put("Down", toolkit.getImage(getClass().getResource("resources/Kiu_down.png")));
-        Images.put("Jump", toolkit.getImage(getClass().getResource("resources/Kiu_jump.png")));
+        images.put("Stand", toolkit.getImage(getClass().getResource("resources/Kiu_stand.png")));
+        images.put("Punch1", toolkit.getImage(getClass().getResource("resources/Kiu_attack1.png")));
+        images.put("Punch2", toolkit.getImage(getClass().getResource("resources/Kiu_attack2.png")));
+        images.put("Kick3", toolkit.getImage(getClass().getResource("resources/Kiu_attack3.png")));
+        images.put("Run", toolkit.getImage(getClass().getResource("resources/Kiu_FastMove.png")));
+        images.put("Walk", toolkit.getImage(getClass().getResource("resources/Kiu_walk.png")));
+        images.put("Guard", toolkit.getImage(getClass().getResource("resources/Kiu_guard.png")));
+        images.put("Damage", toolkit.getImage(getClass().getResource("resources/Kiu_ukemi.png")));
+        images.put("Down", toolkit.getImage(getClass().getResource("resources/Kiu_down.png")));
+        images.put("Jump", toolkit.getImage(getClass().getResource("resources/Kiu_jump.png")));
     }
 
     @Override
-    public void RegisterAudioClip(TreeMap<String, AudioClip> audios) {
+    public void registerAudioClip(TreeMap<String, AudioClip> audios) {
         audios.put("Kiu_attack1", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_attack1.wav")));
         audios.put("Kiu_attack2", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_attack2.wav")));
         audios.put("Kiu_attack3", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_attack3.wav")));
@@ -628,21 +698,21 @@ class Shunchan extends UECPlayerBase{
     }
 
     @Override
-    public void GameFinished(int WinOrLoseOrDraw, boolean HPeqZero) {
-        switch (WinOrLoseOrDraw){
+    public void gameFinished(int winOrLoseOrDraw, boolean HPeqZero) {
+        switch (winOrLoseOrDraw) {
             case 0://Win
-                NowImageName = "Jump";
-                if(!did_PlayWin){
-                    NowRequestedPlayAudios.add("Kiu_win");
-                    did_PlayWin = true;
+                nowImageName = "Jump";
+                if(!didPlayWin) {
+                    nowRequestedPlayAudios.add("Kiu_win");
+                    didPlayWin = true;
                 }
 
                 break;
             case 1://Lose
-                NowImageName = HPeqZero ? "Down" : "Damage";
+                nowImageName = HPeqZero ? "Down" : "Damage";
                 break;
             case 2://Draw
-                NowImageName = "Run";
+                nowImageName = "Run";
                 break;
 
         }
@@ -656,11 +726,11 @@ enum Looking{
 
     private final float value;
 
-    Looking(final float value){
+    Looking(final float value) {
         this.value = value;
     }
 
-    public float getValue(){
+    public float getValue() {
         return value;
     }
 }
@@ -684,7 +754,7 @@ class AttackInfo{
 
 
 
-    public AttackInfo(UECPlayerBase Own, UECPlayerBase Opponent, float magnification){
+    public AttackInfo(UECPlayerBase Own, UECPlayerBase Opponent, float magnification) {
         this.OwnSize = Own.getMySize();
         this.Own = Own;
         this.Opponent = Opponent;
@@ -694,7 +764,7 @@ class AttackInfo{
         this.magnification = magnification;
     }
 
-    public void setInfo(Point StartingPoint, Point RangePoint, int Occurrence,  int Duration, int Interval,int ContinuousHit, int Damage, Point2D.Float Force, int stun, int id, boolean canDown){
+    public void setInfo(Point StartingPoint, Point RangePoint, int Occurrence,  int Duration, int Interval,int ContinuousHit, int Damage, Point2D.Float Force, int stun, int id, boolean canDown) {
         this.StartingPoint = new Point((int)(StartingPoint.x * magnification), (int)(StartingPoint.y * magnification) );
         this.RangePoint = new Point((int)(RangePoint.x * magnification), (int)(RangePoint.y * magnification) );;
         this.sOccurrence = Occurrence;
@@ -712,50 +782,50 @@ class AttackInfo{
     }
 
     //アクセサメソッド
-    public int getDamage(){ return Damage; }
-    public void setHaving(boolean isHaving){ this.isHaving = isHaving; }
-    public boolean isHaving(){ return isHaving; }
+    public int getDamage() { return Damage; }
+    public void setHaving(boolean isHaving) { this.isHaving = isHaving; }
+    public boolean isHaving() { return isHaving; }
 
     //継続時間を管理する。現在の状態を数値として返す
-    public int update(){
+    public int update() {
         NowFrame++;
-        if(NowFrame > sInterval){
+        if(NowFrame > sInterval) {
             isHaving = false;
             Own.setNowImageName("Stand");
             return mode = 3; //AfterInterval
-        }else if(NowFrame > sDuration){
+        } else if(NowFrame > sDuration) {
             return mode = 2; //Interval
-        }else if(NowFrame > sOccurrence){
+        } else if(NowFrame > sOccurrence) {
             return mode = 1; //Attacking
-        }else{
+        } else {
             return mode = 0; //BeforeAttacking
         }
     }
 
     //当たり判定の確認を行う
-    public boolean judgeHitted(Looking look, Point2D.Float OwnPos, Point2D.Float OpponentPos){
+    public boolean judgeHitted(Looking look, Point2D.Float OwnPos, Point2D.Float OpponentPos) {
         //既に攻撃はヒットした
-        if (alreadyHit){
-            if (NowContinuousHit-- > 0){
+        if (alreadyHit) {
+            if (NowContinuousHit-- > 0) {
                 return false;
-            }else{
+            } else {
                 //次弾までの時間が過ぎた
                 NowContinuousHit = ContinuousHit;
                 alreadyHit = false;
             }
         }
         //相手はダウン中で攻撃できない
-        if (Opponent.getCanDown()){ return false; }
+        if (Opponent.getCanDown()) { return false; }
 
 
         //自身の向きを引数に。向きが左ならば全てを反転して右向きとして考える。
         this.look = look;
         this.OwnPos = OwnPos;
         Point2D.Float rightOwnPos, rightOpponentPos;
-        if(look == Looking.Right){
+        if(look == Looking.Right) {
             rightOwnPos = OwnPos;
             rightOpponentPos = OpponentPos;
-        }else{
+        } else {
             rightOwnPos = new Point2D.Float(UECFighter.SCREEN_WIDTH - OwnPos.x - OwnSize.x, OwnPos.y);
             rightOpponentPos = new Point2D.Float(UECFighter.SCREEN_WIDTH - OpponentPos.x - OpponentSize.x, OpponentPos.y);
         }
@@ -767,15 +837,15 @@ class AttackInfo{
         return isHitted;
     }
 
-    public void ConfirmAttack(){
+    public void ConfirmAttack() {
         System.out.println(Force != null);
-        Opponent.ConfirmDamage(new Point2D.Float(Force.x * look.getValue(), Force.y), stun, Damage, canDown);
+        Opponent.confirmDamage(new Point2D.Float(Force.x * look.getValue(), Force.y), stun, Damage, canDown);
     }
 
     //デバッグ用攻撃範囲描画(右向き描画のみ対応)
-    public void print(Graphics g, Point2D.Float OwnPos){
-        if(isHaving){
-            switch (mode){
+    public void print(Graphics g, Point2D.Float OwnPos) {
+        if(isHaving) {
+            switch (mode) {
                 case 0:
                     g.setColor(Color.BLUE);
                     break;
@@ -809,7 +879,7 @@ class StartFrameView extends JPanel implements ActionListener{
     private boolean flash;
     private TreeMap<String, AudioClip> audios;
 
-    public StartFrameView(UECFighter uecFighter){
+    public StartFrameView(UECFighter uecFighter) {
         this.uecFighter = uecFighter;
         this.setSize(UECFighter.SCREEN_WIDTH, UECFighter.HEIGHT);
         this.setBackground(Color.white);
@@ -832,18 +902,18 @@ class StartFrameView extends JPanel implements ActionListener{
     }
 
     //@Override
-    public void keyTyped(KeyEvent e){
+    public void keyTyped(KeyEvent e) {
 
     }
 
     //@Override
-    public void keyPressed(KeyEvent e){
+    public void keyPressed(KeyEvent e) {
         int keycode = e.getKeyCode();
-        switch(keycode){
+        switch(keycode) {
             case KeyEvent.VK_UP:
-                if(c_point > 250){
-                     c_point -= 80;
-                     PlaySoundEffect("Select");
+                if(c_point > 250) {
+                    c_point -= 80;
+                    PlaySoundEffect("Select");
                 }
                 this.repaint();
                 break;
@@ -855,10 +925,10 @@ class StartFrameView extends JPanel implements ActionListener{
                 this.repaint();
                 break;
             case KeyEvent.VK_ENTER:
-                if(c_point == 250){
+                if(c_point == 250) {
                     PlaySoundEffect("Decision");
                     select.start();
-                }else{
+                } else {
                     uecFighter.callScene(3);
                 }
                 break;
@@ -866,11 +936,11 @@ class StartFrameView extends JPanel implements ActionListener{
     }
 
     //@Override
-    public void keyReleased(KeyEvent e){
+    public void keyReleased(KeyEvent e) {
 
     }
 
-    public void paint(Graphics g){
+    public void paint(Graphics g) {
         g.drawImage(backImage, 0, 0, UECFighter.SCREEN_WIDTH, UECFighter.SCREEN_HEIGHT, this);
         super.paint(g);
         g.drawImage(title, 60, 20, 600, 233, this);
@@ -882,7 +952,7 @@ class StartFrameView extends JPanel implements ActionListener{
         g.drawString("OPTION", 260, 380);
     }
 
-    public void loadFont(String filename){
+    public void loadFont(String filename) {
         try {
             InputStream is = getClass().getResourceAsStream(filename);
             font = Font.createFont(Font.TRUETYPE_FONT, is);
@@ -892,20 +962,20 @@ class StartFrameView extends JPanel implements ActionListener{
         }
     }
 
-    public void actionPerformed(ActionEvent e){
+    public void actionPerformed(ActionEvent e) {
         select_time--;
-        if(select_time == 0){
+        if(select_time == 0) {
             select.stop();
             uecFighter.callScene(1);
         }
     }
 
-    private void RegisterAudioClip(){
+    private void RegisterAudioClip() {
         audios.put("Select", java.applet.Applet.newAudioClip(getClass().getResource("resources/cursor_move.wav")));
         audios.put("Decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/decision.wav")));
     }
 
-    private void PlaySoundEffect(String soundName){
+    private void PlaySoundEffect(String soundName) {
         AudioClip audioClip = audios.get(soundName);
         audioClip.play();
     }
@@ -921,21 +991,21 @@ class PlayerSelect extends JPanel {
     private JLabel player1, player2, p_1, p_2, OK_1, OK_2;    //player
     //private JButton p_1, p_2;
     private int p_enabled[], p_num,
-                p1_right, p1_left, p1_up, p1_down, p1_OK, p1_cancel,
-                p2_right, p2_left, p2_up, p2_down, p2_OK, p2_cancel;
+            p1_right, p1_left, p1_up, p1_down, p1_OK, p1_cancel,
+            p2_right, p2_left, p2_up, p2_down, p2_OK, p2_cancel;
     private boolean p_selected[]; //選択されているかどうかを判定 1P...selected[0], 2P...selected[1]
     private Image img[], backImage, img_kiu, img_nao, img_1p, img_2p;
     private Font font, font_name; //fontをいじる際に使用
     private TreeMap<String, AudioClip> audios; //音声
     private AudioClip bgm;
 
-    public PlayerSelect(UECFighter uecFighter){
+    public PlayerSelect(UECFighter uecFighter) {
         this.uecFighter = uecFighter;
         p_num = 2;
         p_enabled = new int[p_num];
         img = new Image[2];
         p_selected = new boolean[p_num];
-        for(int i=0; i<p_num; i++){
+        for(int i=0; i<p_num; i++) {
             p_selected[i] = false;
             p_enabled[i] = 0; //0がKIU, 1がNAO
         }
@@ -964,54 +1034,54 @@ class PlayerSelect extends JPanel {
         RegisterAudioClip();
     }
 
-    public void keyTyped(KeyEvent e){
+    public void keyTyped(KeyEvent e) {
 
     }
 
-    public void keyPressed(KeyEvent e){
+    public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
-        if(!p_selected[0]){
-            if(key == p1_right){
-                if(p_enabled[0]<1){
+        if(!p_selected[0]) {
+            if(key == p1_right) {
+                if(p_enabled[0]<1) {
                     p_enabled[0] += 1;
                 }
-            }if(key == p1_left){
-                if(p_enabled[0]>0){
+            }if(key == p1_left) {
+                if(p_enabled[0]>0) {
                     p_enabled[0] -= 1;
                 }
             }
-        }if(!p_selected[1]){
-            if(key == p2_right){
-                if(p_enabled[1]<1){
+        }if(!p_selected[1]) {
+            if(key == p2_right) {
+                if(p_enabled[1]<1) {
                     p_enabled[1] += 1;
                 }
-            }if(key == p2_left){
-                if(p_enabled[1]>0){
+            }if(key == p2_left) {
+                if(p_enabled[1]>0) {
                     p_enabled[1] -= 1;
                 }
             }
-        }if(key == p1_OK){
+        }if(key == p1_OK) {
             PlaySoundEffect("Decision");
-            if(p_enabled[0] == 0){
+            if(p_enabled[0] == 0) {
                 PlaySoundEffect("Kiu_decision");
-            }else {
+            } else {
                 PlaySoundEffect("Nao_decision");
             }
             p_selected[0] = true;
-        }if(key == p2_OK){
+        }if(key == p2_OK) {
             PlaySoundEffect("Decision");
-            if(p_enabled[1] == 0){
+            if(p_enabled[1] == 0) {
                 PlaySoundEffect("Kiu_decision");
-            }else {
+            } else {
                 PlaySoundEffect("Nao_decision");
             }
             p_selected[1] = true;
-        }if(key == p1_cancel){
+        }if(key == p1_cancel) {
             p_selected[0] = false;
-        }if(key == p2_cancel){
+        }if(key == p2_cancel) {
             p_selected[1] = false;
-        }if(key == KeyEvent.VK_ENTER){
-            if(p_selected[0] && p_selected[1]){
+        }if(key == KeyEvent.VK_ENTER) {
+            if(p_selected[0] && p_selected[1]) {
                 PlaySoundEffect("START");
                 bgm.stop(); bgm = null;
                 uecFighter.setPlayer(p_enabled[0], p_enabled[1]);
@@ -1021,12 +1091,12 @@ class PlayerSelect extends JPanel {
         repaint();
     }
 
-    public void keyReleased(KeyEvent e){
+    public void keyReleased(KeyEvent e) {
 
     }
 
     @Override
-    public void paint(Graphics g){
+    public void paint(Graphics g) {
         g.drawImage(backImage, 0, 0, UECFighter.SCREEN_WIDTH, UECFighter.SCREEN_HEIGHT, this);
         super.paint(g);
 
@@ -1047,7 +1117,7 @@ class PlayerSelect extends JPanel {
         //カーソル
         g.drawImage(img_1p, 150, 320, 100, 50, this);
         g.drawImage(img_2p, 470, 320, 100, 50, this);
-        for(int i=0; i<p_num; i++){
+        for(int i=0; i<p_num; i++) {
             g.drawImage(img_1p, 270+(p_enabled[0])*100-22, 398, 20, 10, this);
             g.drawImage(img_2p, 270+(p_enabled[1])*100-22, 410, 20, 10, this);
 
@@ -1061,19 +1131,19 @@ class PlayerSelect extends JPanel {
         g.drawImage(img[p_enabled[0]], 50, 60, 300, 300, this);
         g.drawImage(img[p_enabled[1]], 670, 60, -300, 300, this);
 
-        if(p_selected[0]){
+        if(p_selected[0]) {
             g.setFont(font);
             g.setColor(Color.red);
             g.drawString("OK!", 50, 370);
         }
-        if(p_selected[1]){
+        if(p_selected[1]) {
             g.setFont(font);
             g.setColor(Color.blue);
             g.drawString("OK!", 600, 370);
         }
 
         //決定
-        if(p_selected[0] && p_selected[1]){
+        if(p_selected[0] && p_selected[1]) {
             g.setColor(Color.black);
             g.fillRect(0, 190, UECFighter.SCREEN_WIDTH, 60);
             g.setColor(new Color(255, 255, 0));
@@ -1084,7 +1154,7 @@ class PlayerSelect extends JPanel {
         }
     }
 
-    public Font loadFont(String filename, float size){
+    public Font loadFont(String filename, float size) {
         try {
             InputStream is = getClass().getResourceAsStream(filename);
             Font font = Font.createFont(Font.TRUETYPE_FONT, is);
@@ -1096,7 +1166,7 @@ class PlayerSelect extends JPanel {
         return font;
     }
 
-    private void RegisterAudioClip(){
+    private void RegisterAudioClip() {
         audios.put("Select", java.applet.Applet.newAudioClip(getClass().getResource("resources/slap2.wav")));
         audios.put("Kiu_decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Kiu_sentaku.wav")));
         audios.put("Nao_decision", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_sentaku.wav")));
@@ -1104,7 +1174,7 @@ class PlayerSelect extends JPanel {
         audios.put("START", java.applet.Applet.newAudioClip(getClass().getResource("resources/kick3.wav")));
     }
 
-    private void PlaySoundEffect(String soundName){
+    private void PlaySoundEffect(String soundName) {
         AudioClip audioClip = audios.get(soundName);
         audioClip.play();
     }
@@ -1115,31 +1185,31 @@ class GameTime implements ActionListener{
     private javax.swing.Timer gameTime;
     private int starttime, time;
 
-    public GameTime(int time){
+    public GameTime(int time) {
         this.time = time;
         starttime = 4;
         gameTime = new javax.swing.Timer(1000, this);
         gameTime.start();
     }
 
-    public int getTime(){ return time; }
+    public int getTime() { return time; }
 
-    public int getstart(){ return starttime;}
+    public int getstart() { return starttime;}
 
-    public void setTime(){
-        if(starttime > 0){
+    public void setTime() {
+        if(starttime > 0) {
             starttime--;
         }
-        if(starttime == 0 && time>0){
+        if(starttime == 0 && time>0) {
             time--;
         }
     }
 
-    public void actionPerformed(ActionEvent e){
+    public void actionPerformed(ActionEvent e) {
         this.setTime();
     }
 
-    public void stop(){
+    public void stop() {
         gameTime.stop();
     }
 }
@@ -1164,7 +1234,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
     private AudioClip bgm;
 
     //コンストラクタの引数 P1,P2はKiu,Naoのどちらを描画するか決めるために使う。0がKiu,1がNao
-    public UECFrameView(UECFighter uecFighter, int P1, int P2, int time){
+    public UECFrameView(UECFighter uecFighter, int P1, int P2, int time) {
         this.setSize(UECFighter.SCREEN_WIDTH, UECFighter.HEIGHT);
         this.setBackground(new Color(150,255,255));
         this.setLayout(null);
@@ -1218,16 +1288,16 @@ class UECFrameView extends JPanel {//implements KeyListener{
         this.add(timeLabel);*/
 
         //デバッグ用
-        player1.setDebugmessage(false);
-        player2.setDebugmessage(true);
+        player1.setDebugMessage(false);
+        player2.setDebugMessage(true);
 
         //
         gameThread = new java.util.Timer();
         gameThread.schedule(new TimerTask() {
             @Override
             public void run() {
-                player1.Action();
-                player2.Action();
+                player1.action();
+                player2.action();
 
                 p1position = player1.getPosition();
                 p2position = player2.getPosition();
@@ -1235,8 +1305,8 @@ class UECFrameView extends JPanel {//implements KeyListener{
                 boolean p2Hitted = false, p1Hitted = false;
                 int p1mode, p2mode;
                 //"AttackInfo.update()==1" means "Attacking".
-                if(p1AttackInfo.isHaving()){
-                    switch (p1mode = p1AttackInfo.update()){
+                if(p1AttackInfo.isHaving()) {
+                    switch (p1mode = p1AttackInfo.update()) {
                         case 1:
                             p2Hitted = p1AttackInfo.judgeHitted(player1.getLook(), p1position, p2position);
                             break;
@@ -1246,8 +1316,8 @@ class UECFrameView extends JPanel {//implements KeyListener{
                     }
 
                 }
-                if(p2AttackInfo.isHaving()){
-                    switch (p2mode = p2AttackInfo.update()){
+                if(p2AttackInfo.isHaving()) {
+                    switch (p2mode = p2AttackInfo.update()) {
                         case 1:
                             p1Hitted = p2AttackInfo.judgeHitted(player2.getLook(), p2position, p1position);
                             break;
@@ -1259,11 +1329,11 @@ class UECFrameView extends JPanel {//implements KeyListener{
 
                 }
 
-                if(p2Hitted){
+                if(p2Hitted) {
                     p1AttackInfo.ConfirmAttack();
                     p2AttackInfo.setHaving(false);
                 }
-                if(p1Hitted){
+                if(p1Hitted) {
                     p2AttackInfo.ConfirmAttack();
                     p1AttackInfo.setHaving(false);
                 }
@@ -1308,13 +1378,13 @@ class UECFrameView extends JPanel {//implements KeyListener{
             canOperate = false;
             if (player1.getHP() > player2.getHP()) {
                 g.drawString("1P WIN!!", 220, 240);
-                player1.GameFinished(0, false); player2.GameFinished(1, false);
+                player1.gameFinished(0, false); player2.gameFinished(1, false);
             } else if (player1.getHP() < player2.getHP()) {
                 g.drawString("2P WIN!!", 220, 240);
-                player1.GameFinished(1, false); player2.GameFinished(0, false);
+                player1.gameFinished(1, false); player2.gameFinished(0, false);
             } else {
                 g.drawString("DRAW!!", 250, 240);
-                player1.GameFinished(2, false); player2.GameFinished(2, false);
+                player1.gameFinished(2, false); player2.gameFinished(2, false);
             }
         }
         switch (gameTime.getstart()) {
@@ -1327,12 +1397,12 @@ class UECFrameView extends JPanel {//implements KeyListener{
         }
         if (player1.getHP() <= 0) {
             g.drawString("2P WIN!!", 220, 240);
-            player1.GameFinished(1, true); player2.GameFinished(0, true);
+            player1.gameFinished(1, true); player2.gameFinished(0, true);
             gameTime.stop();
             canOperate = false;
         } else if (player2.getHP() <= 0) {
             g.drawString("1P WIN!!", 220, 240);
-            player1.GameFinished(0, true); player2.GameFinished(1, true);
+            player1.gameFinished(0, true); player2.gameFinished(1, true);
             gameTime.stop();
             canOperate = false;
         }
@@ -1340,7 +1410,8 @@ class UECFrameView extends JPanel {//implements KeyListener{
         //位置を渡してついでにJump判定もやってもらうことにした
         if ((p1image = player1.getNowImage()) != null) {
             //(p1 < p2) -> lookingRight
-            if (player1.setgetLook(p2position) == Looking.Right) {
+            player1.updateLook(p2position);
+            if (player1.getLook() == Looking.Right) {
                 g.drawImage(p1image,
                         (int) p1position.x, (int) p1position.y,
                         p1size.x, p1size.y, null);
@@ -1356,7 +1427,8 @@ class UECFrameView extends JPanel {//implements KeyListener{
         }
         if ((p2image = player2.getNowImage()) != null) {
             //p2 < p1 -> lookingRight
-            if (player2.setgetLook(p1position) == Looking.Right) {
+            player2.updateLook(p1position);
+            if (player2.getLook() == Looking.Right) {
                 g.drawImage(p2image,
                         (int) p2position.x, (int) p2position.y,
                         p2size.x, p2size.y, null);
@@ -1379,7 +1451,7 @@ class UECFrameView extends JPanel {//implements KeyListener{
 
     //@Override
     public void keyPressed(KeyEvent e) {
-        if(canOperate){
+        if(canOperate) {
             player1.keyPressed(e);
             player2.keyPressed(e);
         }
@@ -1388,23 +1460,23 @@ class UECFrameView extends JPanel {//implements KeyListener{
 
     //@Override
     public void keyReleased(KeyEvent e) {
-        if(canOperate){
+        if(canOperate) {
             player1.keyReleased(e);
             player2.keyReleased(e);
         }
     }
 
-    private void RegisterAudioClip(){
+    private void RegisterAudioClip() {
         //共有効果音
         audios.put("Punch", java.applet.Applet.newAudioClip(getClass().getResource("resources/punch1.wav")));
         audios.put("guard", java.applet.Applet.newAudioClip(getClass().getResource("resources/Nao_guard.wav")));
         //キャラボイス
-        player1.RegisterAudioClip(audios);
-        player2.RegisterAudioClip(audios);
+        player1.registerAudioClip(audios);
+        player2.registerAudioClip(audios);
     }
 
-    private void PlaySoundEffect(List<String> reqestedSoundNames){
-        while (!reqestedSoundNames.isEmpty()){
+    private void PlaySoundEffect(List<String> reqestedSoundNames) {
+        while (!reqestedSoundNames.isEmpty()) {
             String soundName = reqestedSoundNames.remove(0);
             AudioClip audioClip = audios.get(soundName);
             audioClip.play();
@@ -1414,31 +1486,23 @@ class UECFrameView extends JPanel {//implements KeyListener{
 
 
     //キャラのデータを返す
-    private UECPlayerBase getPlayerData(int CharId, boolean isP1){
+    private UECPlayerBase getPlayerData(int CharId, boolean isP1) {
         UECPlayerBase chosenChar = null;
         Point size, range, startRange;
         int ButtonId[];
 
-        if (isP1){
+        if (isP1) {
             ButtonId = new int[]{KeyEvent.VK_W, KeyEvent.VK_S, KeyEvent.VK_A, KeyEvent.VK_D,  KeyEvent.VK_C, KeyEvent.VK_V};
-        }else{
+        } else {
             ButtonId = new int[]{KeyEvent.VK_I, KeyEvent.VK_K, KeyEvent.VK_J, KeyEvent.VK_L,  KeyEvent.VK_COMMA, KeyEvent.VK_PERIOD};
         }
-        switch (CharId){
+        switch (CharId) {
             case 0://Kiuchi
-                float p2magnification = 2.2f;
-                size = new Point((int) (120 * p2magnification), (int) (120 * p2magnification));
-                range = new Point((int) (30 * p2magnification), (int) (70 * p2magnification));
-                startRange = new Point((int) (45 * p2magnification), (int) (50 * p2magnification));
-                chosenChar = new Shunchan(ButtonId[0], ButtonId[1], ButtonId[2], ButtonId[3],  ButtonId[4], ButtonId[5], isP1 ? 0 : UECFighter.SCREEN_WIDTH-size.x, UECFighter.SCREEN_HEIGHT-size.y, p2magnification, size, range, startRange, false);
+                chosenChar = new Shunchan(isP1);
 
                 break;
             case 1://Naochan
-                float p1magnification = 2f;
-                size = new Point((int) (120 * p1magnification), (int) (120 * p1magnification));
-                range = new Point((int) (30 * p1magnification), (int) (70 * p1magnification));
-                startRange = new Point((int) (45 * p1magnification), (int) (50 * p1magnification));
-                chosenChar = new NaoChan(ButtonId[0], ButtonId[1], ButtonId[2], ButtonId[3],  ButtonId[4], ButtonId[5], isP1 ? 0 : UECFighter.SCREEN_WIDTH-size.x, UECFighter.SCREEN_HEIGHT-size.y, p1magnification, size, range, startRange, true);
+                chosenChar = new NaoChan(isP1);
                 break;
 
         }
@@ -1455,7 +1519,7 @@ class Option extends JPanel {
     private Image backImage, change, fist;
     private int enabled, cursor, time;
 
-    public Option(UECFighter uecFighter){
+    public Option(UECFighter uecFighter) {
         this.uecFighter = uecFighter;
         font = loadFont("resources/V-GERB(bold).ttf", 50.0f);
         option = loadFont("resources/V-GERB(bold).ttf", 30.0f);
@@ -1469,7 +1533,7 @@ class Option extends JPanel {
     }
 
     @Override
-    public void paint(Graphics g){
+    public void paint(Graphics g) {
         g.drawImage(backImage, 0, 0, UECFighter.SCREEN_WIDTH, UECFighter.SCREEN_HEIGHT, this);
         super.paint(g);
         g.setColor(Color.white);
@@ -1490,7 +1554,7 @@ class Option extends JPanel {
         g.drawString("SEC", 500, 185);
     }
 
-    public Font loadFont(String filename, float size){
+    public Font loadFont(String filename, float size) {
         try {
             InputStream is = getClass().getResourceAsStream(filename);
             Font font = Font.createFont(Font.TRUETYPE_FONT, is);
@@ -1502,35 +1566,35 @@ class Option extends JPanel {
         return font;
     }
 
-    public void keyPressed(KeyEvent e){
+    public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
-        switch(key){
+        switch(key) {
             case KeyEvent.VK_ENTER:
-                if(cursor == 3){
+                if(cursor == 3) {
                     uecFighter.setTime(time);
                     uecFighter.callScene(0);
                 }
                 break;
             case KeyEvent.VK_UP:
-                if(cursor > 0){
+                if(cursor > 0) {
                     cursor -= 3;
                 }
                 break;
             case KeyEvent.VK_DOWN:
-                if(cursor < 3){
+                if(cursor < 3) {
                     cursor += 3;
                 }
                 break;
             case KeyEvent.VK_LEFT:
-                if(cursor == 0){
-                    if(time > 60){
+                if(cursor == 0) {
+                    if(time > 60) {
                         time -= 60;
                     }
                 }
                 break;
             case KeyEvent.VK_RIGHT:
-                if(cursor == 0){
-                    if(time < 300){
+                if(cursor == 0) {
+                    if(time < 300) {
                         time += 60;
                     }
                 }
@@ -1539,7 +1603,7 @@ class Option extends JPanel {
         this.repaint();
     }
 
-    public void keyReleased(KeyEvent e){
+    public void keyReleased(KeyEvent e) {
 
     }
 }
@@ -1554,7 +1618,7 @@ public class UECFighter extends JFrame implements KeyListener{
     private boolean optioned;
     public final static int SCREEN_WIDTH = 720, SCREEN_HEIGHT = 600;
 
-    public UECFighter(){
+    public UECFighter() {
         this.addKeyListener(this);
         this.setFocusable(true);
         this.callScene(0);
@@ -1565,11 +1629,11 @@ public class UECFighter extends JFrame implements KeyListener{
 
     }
 
-    public void callScene(int scene){
+    public void callScene(int scene) {
         this.setScene(scene);
-        switch(scene){
+        switch(scene) {
             case 0: //スタート画面
-                if(optioned){
+                if(optioned) {
                     option.setVisible(false);
                     this.remove(option);
                     optioned = false;
@@ -1600,12 +1664,12 @@ public class UECFighter extends JFrame implements KeyListener{
     }
 
     @Override
-    public void keyTyped(KeyEvent e){
+    public void keyTyped(KeyEvent e) {
 
     }
 
     @Override
-    public void keyPressed(KeyEvent e){
+    public void keyPressed(KeyEvent e) {
         if(scene == 0) startFrameView.keyPressed(e);
         else if(scene == 1) playerselect.keyPressed(e);
         else if(scene == 2) uecFrameView.keyPressed(e);
@@ -1613,16 +1677,16 @@ public class UECFighter extends JFrame implements KeyListener{
     }
 
     @Override
-    public void keyReleased(KeyEvent e){
+    public void keyReleased(KeyEvent e) {
         if(scene == 0) startFrameView.keyReleased(e);
         else if(scene == 1) playerselect.keyPressed(e);
         else if(scene == 2) uecFrameView.keyReleased(e);
         else if(scene == 3) option.keyReleased(e);
     }
 
-    public void setScene(int scene){ this.scene = scene; }
+    public void setScene(int scene) { this.scene = scene; }
 
-    public void setPlayer(int P1, int P2){
+    public void setPlayer(int P1, int P2) {
         this.P1 = P1; this.P2 = P2;
 
     }
@@ -1631,7 +1695,7 @@ public class UECFighter extends JFrame implements KeyListener{
 
     //UECFrameViewでどのplayerを描画するかを決めるための関数
 
-    public static void main(String argv[]){
+    public static void main(String argv[]) {
         new UECFighter();
     }
 
